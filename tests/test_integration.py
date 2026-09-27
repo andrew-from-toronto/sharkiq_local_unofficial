@@ -384,3 +384,27 @@ async def test_a_log_without_versions_or_mode(hass, entry, robot):
     dr.async_get(hass).async_remove_device(device.id)
     await push_persisted_map(hass, entry)
     assert dr.async_get(hass).async_get_device_by_identifier((DOMAIN, "192.0.2.10"), entry.entry_id) is None
+
+
+async def test_mid_job_log_entries_become_events(hass, entry, robot):
+    from pytest_homeassistant_custom_component.common import async_capture_events
+
+    from sharklocal.models import VacuumLogEntry
+
+    from custom_components.sharkiq_local_unofficial.const import EVENT_VACUUM_EVENT
+
+    await setup(hass, entry)
+    events = async_capture_events(hass, EVENT_VACUUM_EVENT)
+
+    await push(hass, entry, docked_status(
+        mode=VacuumMode.CLEANING,
+        log_entries=[VacuumLogEntry("DT_WARNING_CODE", 1790473219, "WARN_MM_LOWLIGHT")],
+    ))
+
+    assert [e.data for e in events] == [{
+        "host": "192.0.2.10",
+        "key": "DT_WARNING_CODE",
+        "code": "WARN_MM_LOWLIGHT",
+        "description": "Low light for the camera",
+        "time": 1790473219,
+    }]

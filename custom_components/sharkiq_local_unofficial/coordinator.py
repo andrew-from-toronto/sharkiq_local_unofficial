@@ -34,7 +34,9 @@ from .const import (
     DEFAULT_ROBOT_TYPE,
     DEFAULT_SELF_EMPTY_DOCK,
     DOMAIN,
+    EVENT_VACUUM_EVENT,
 )
+from .codes import describe
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -188,6 +190,19 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
                 self._update_firmware(status.map)
             else:
                 self._live_map = status.map
+        # Log entries the robot streams mid-job become events automations can
+        # match on (by key and code).
+        for entry in status.log_entries or ():
+            self.hass.bus.async_fire(
+                EVENT_VACUUM_EVENT,
+                {
+                    "host": self.host,
+                    "key": entry.key,
+                    "code": entry.code,
+                    "description": describe(entry.code),
+                    "time": entry.time,
+                },
+            )
         self.async_set_updated_data(self._snapshot(status))
 
     def _snapshot(self, status: VacuumStatus) -> SharkData:
