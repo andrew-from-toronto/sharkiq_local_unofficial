@@ -72,6 +72,9 @@ class Robot:
         self.status = docked_status()
         self.actions: list[str] = []
         self.payloads: list[bytes] = []
+        # Counted apart from ``actions``: the coordinator sends it on its own
+        # after setup, which is not what the command tests are about.
+        self.map_requests = 0
         self.start_monitoring = AsyncMock()
         # Per-action answers: a value to return or an exception to raise.
         # This firmware's REST endpoints are dead, so by default the REST-only
@@ -89,6 +92,9 @@ class Robot:
             return self.status
         if answer is not None:
             return answer
+        if action == "request_map":
+            self.map_requests += 1
+            return True
         self.actions.append(action)
         return True
 

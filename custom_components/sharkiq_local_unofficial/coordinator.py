@@ -38,6 +38,8 @@ from .const import (
 )
 from .codes import describe
 
+MAP_REQUEST_ATTEMPTS = 3
+
 _LOGGER = logging.getLogger(__name__)
 
 STORAGE_VERSION = 1
@@ -120,6 +122,14 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
         # it) arrives. Not durable: a restart mid-job just stops drawing it.
         self.job_target: JobTarget | None = None
         self.capabilities: Capabilities = capabilities_from_options({})
+        # The end-of-job map is published once, as the robot docks, so a job
+        # that ended while this entry was down or the robot unreachable leaves
+        # the last-job sensors on the one before. A docked robot re-sends its
+        # saved map on request (that job's path and summary, no event log), so
+        # ask for it after setup and after every outage until one arrives. Not
+        # durable: a restart is exactly when it is due.
+        self._map_requests_left = 0
+        self._arm_map_request()
 
     async def async_setup(self) -> None:
         """Initial setup: fetch device info and restore the stored map."""
@@ -177,17 +187,21 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
         """Handle a status frame pushed by the robot."""
         if status.map is not None:
             if status.map.persisted:
-                # The job is over; the persisted frame supersedes the live one
-                # and records what the job cleaned.
-                self._live_map = None
-                self.job_target = None
-                # Once per job, so save now: a delayed save is only flushed at
-                # shutdown and an entry reload in between would lose it.
-                self.hass.async_create_task(
-                    self._map_store.async_save(status.map.to_dict()),
-                    f"{DOMAIN} save map",
-                )
-                self._update_firmware(status.map)
+                self._map_requests_left = 0
+                # The client skips a requested map of a job whose end-of-job
+                # frame it already has, since that one carries the event log.
+                if self.client.last_map is status.map:
+                    # The job is over; the persisted frame supersedes the live
+                    # one and records what the job cleaned.
+                    self._live_map = None
+                    self.job_target = None
+                    # Once per job, so save now: a delayed save is only flushed
+                    # at shutdown and an entry reload in between would lose it.
+                    self.hass.async_create_task(
+                        self._map_store.async_save(status.map.to_dict()),
+                        f"{DOMAIN} save map",
+                    )
+                    self._update_firmware(status.map)
             else:
                 self._live_map = status.map
         # Log entries the robot streams mid-job become events automations can
@@ -223,9 +237,13 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
         try:
             status = await self.client.get_status()
         except ConnectError as err:
+            self._arm_map_request()
             raise UpdateFailed(f"Vacuum {self.host} unreachable: {err}") from err
         except SharklocalError as err:
+            self._arm_map_request()
             raise UpdateFailed(f"Vacuum {self.host} error: {err}") from err
+
+        await self._request_missed_map(status)
 
         # Refresh wifi info on a time-based cadence (~5 min), not a fixed
         # poll-count, so faster polling doesn't proportionally hammer the
@@ -239,6 +257,27 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
                 _LOGGER.debug("WiFi refresh failed for %s: %s", self.host, err)
 
         return self._snapshot(status)
+
+    @callback
+    def _arm_map_request(self) -> None:
+        """Ask for the saved map on the next polls that find the robot docked."""
+        if self.use_mqtt:
+            # The monitor may still be subscribing when the first request goes
+            # out, and a robot that has never mapped will not answer, so a few
+            # polls' worth rather than one or forever.
+            self._map_requests_left = MAP_REQUEST_ATTEMPTS
+
+    async def _request_missed_map(self, status: VacuumStatus) -> None:
+        """Ask a docked robot for its saved map while a request is due."""
+        # Only while docked: that is when the robot has a finished job to send,
+        # and a command it was never sent mid-job is not tried then.
+        if self._map_requests_left <= 0 or not status.is_docked:
+            return
+        self._map_requests_left -= 1
+        try:
+            await self.client.request_map()
+        except SharklocalError as err:
+            _LOGGER.debug("Could not request the saved map from %s: %s", self.host, err)
 
     @property
     def unique_id(self) -> str:

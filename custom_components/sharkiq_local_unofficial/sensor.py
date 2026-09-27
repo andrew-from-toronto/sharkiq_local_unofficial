@@ -57,10 +57,12 @@ def _log_codes(data: SharkData, key: str) -> list[str] | None:
     """Codes logged under *key* in the last job's event log, in log order.
 
     The robot's clock can jump mid-job, so log order is the only reliable
-    order. None when no persisted map has been seen yet.
+    order. None when no persisted map has been seen yet, or when it is one
+    sent on request, which has no event log: that says nothing about what the
+    job logged.
     """
     job = _last_job(data)
-    if job is None:
+    if job is None or not job.report:
         return None
     return [entry.code for entry in job.log if entry.key == key]
 
