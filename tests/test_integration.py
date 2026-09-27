@@ -47,15 +47,33 @@ async def test_persisted_map_fills_in_the_last_job(hass, entry, robot):
 
     attrs = hass.states.get(VACUUM).attributes
     assert attrs["rooms"] == ["Bathroom.", "Room", "Laundry Room", "Hallway"]
+    # 880 cleaned cells of 0.06 m.
     area = float(hass.states.get("sensor.basement_shark_last_clean_area").state)
-    assert area == pytest.approx(14.2, abs=0.1)
-    # 335 s, shown in minutes.
+    assert area == pytest.approx(3.17, abs=0.01)
+    # The log's 28 s + 73 s of cleaning, shown in minutes.
     minutes = float(hass.states.get("sensor.basement_shark_last_clean_duration").state)
-    assert minutes == pytest.approx(5.58, abs=0.01)
+    assert minutes == pytest.approx(1.68, abs=0.01)
     warning = hass.states.get("sensor.basement_shark_last_warning")
-    assert warning.state == "WARN_MM_LOWLIGHT"
-    assert warning.attributes["warnings"] == ["WARN_MM_LOWLIGHT"]
-    assert hass.states.get("sensor.basement_shark_last_dock_reason").state == "DE_USR_CTR_DOCK"
+    assert warning.state == "Low light for the camera"
+    assert warning.attributes["code"] == "WARN_MM_LOWLIGHT"
+    assert warning.attributes["warnings"] == ["Low light for the camera"]
+    assert warning.attributes["warning_codes"] == ["WARN_MM_LOWLIGHT"]
+    dock = hass.states.get("sensor.basement_shark_last_dock_reason")
+    assert dock.state == "Sent to dock by user"
+    assert dock.attributes["code"] == "DE_USR_CTR_DOCK"
+    end = hass.states.get("sensor.basement_shark_last_job_end_reason")
+    assert (end.state, end.attributes["code"]) == ("Finished normally", "NORMAL")
+
+
+async def test_a_job_that_logged_no_code_reads_none(hass, entry, robot):
+    # A job sent home by the user logs a dock code but no termination code.
+    await setup(hass, entry)
+    vacuum_map = decode_frame("sharkiq_persisted_map_frame.b64")
+    vacuum_map.log = [e for e in vacuum_map.log if e.key != "DT_WFF_TERM_CODE"]
+    await push(hass, entry, docked_status(map=vacuum_map))
+
+    end = hass.states.get("sensor.basement_shark_last_job_end_reason")
+    assert (end.state, end.attributes["code"]) == ("None", "none")
 
 
 async def test_clean_rooms_sends_what_the_app_sends(hass, entry, robot):

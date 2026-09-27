@@ -1,4 +1,4 @@
-"""Render a Shark map to PNG: floor by room, walls, doors, the cleaned path, dock and robot."""
+"""Render a Shark map to PNG: floor by room, what the job cleaned, walls, doors, path, dock and robot."""
 from __future__ import annotations
 
 import io
@@ -21,11 +21,14 @@ ROOM_COLOURS = [
     (240, 120, 120, 255),
     (120, 220, 220, 255),
 ]
+# Cleaned floor is the room colour blended this far towards white.
+CLEANED_LIFT = 0.55
 PATH = (255, 215, 40, 190)
 EDGE = (255, 255, 255, 230)
 DOOR = (255, 80, 80, 255)
 DOCK = (80, 160, 255, 255)
-ROBOT = (255, 255, 255, 255)
+ROBOT = (35, 35, 45, 255)
+OUTLINE = (255, 255, 255, 255)
 LABEL_BG = (0, 0, 0, 160)
 
 
@@ -64,7 +67,10 @@ def render_map(vacuum_map: VacuumMap, rooms_from: VacuumMap | None = None) -> by
         draw.line([px(p) for p in vacuum_map.path], fill=PATH, width=2, joint="curve")
 
     if (dock := source.dock) is not None:
-        _disc(draw, px((dock.x, dock.y)), SCALE * 1.3, DOCK)
+        # A ring wider than the robot, so it still shows with the robot parked on it.
+        x, y = px((dock.x, dock.y))
+        r = SCALE * 2.6
+        draw.ellipse((x - r, y - r, x + r, y + r), outline=DOCK, width=3)
 
     if (robot := vacuum_map.robot) is not None:
         centre = px((robot.x, robot.y))
@@ -75,7 +81,7 @@ def render_map(vacuum_map: VacuumMap, rooms_from: VacuumMap | None = None) -> by
             centre[0] + math.cos(robot.heading) * radius * 2,
             centre[1] - math.sin(robot.heading) * radius * 2,
         )
-        draw.line([centre, tip], fill=ROBOT, width=3)
+        draw.line([centre, tip], fill=OUTLINE, width=3)
 
     font = ImageFont.load_default(size=SCALE * 3)
     for room in source.rooms:
@@ -85,6 +91,10 @@ def render_map(vacuum_map: VacuumMap, rooms_from: VacuumMap | None = None) -> by
         cx = sum(p[0] for p in points) / len(points)
         cy = sum(p[1] for p in points) / len(points)
         name = room.name.strip()
+        left, top, right, bottom = draw.textbbox((cx, cy), name, font=font, anchor="mm")
+        # Keep the label inside the picture: a room at the edge would clip it.
+        cx += max(0, 4 - left) - max(0, right - (width - 4))
+        cy += max(0, 3 - top) - max(0, bottom - (height - 3))
         left, top, right, bottom = draw.textbbox((cx, cy), name, font=font, anchor="mm")
         draw.rectangle((left - 3, top - 2, right + 3, bottom + 2), fill=LABEL_BG)
         draw.text((cx, cy), name, font=font, fill=(255, 255, 255, 255), anchor="mm")
@@ -106,10 +116,21 @@ def _draw_grid(image: Image.Image, grid: MapGrid) -> None:
                 pixels[col, y] = WALL
             elif MapGrid.is_floor(value):
                 room = grid.room_id(col, row)
-                pixels[col, y] = (
-                    ROOM_COLOURS[room % len(ROOM_COLOURS)] if room else FLOOR
-                )
+                colour = ROOM_COLOURS[room % len(ROOM_COLOURS)] if room else FLOOR
+                if MapGrid.is_cleaned(value):
+                    colour = _lift(colour)
+                pixels[col, y] = colour
     image.paste(cells.resize(image.size, Image.Resampling.NEAREST))
+
+
+def _lift(colour: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+    r, g, b, a = colour
+    return (
+        round(r + (255 - r) * CLEANED_LIFT),
+        round(g + (255 - g) * CLEANED_LIFT),
+        round(b + (255 - b) * CLEANED_LIFT),
+        a,
+    )
 
 
 def _disc(draw: ImageDraw.ImageDraw, centre: tuple[float, float], radius: float, fill) -> None:
@@ -117,6 +138,6 @@ def _disc(draw: ImageDraw.ImageDraw, centre: tuple[float, float], radius: float,
     draw.ellipse(
         (x - radius, y - radius, x + radius, y + radius),
         fill=fill,
-        outline=(255, 255, 255, 255),
+        outline=OUTLINE,
         width=2,
     )

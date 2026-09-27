@@ -25,6 +25,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from sharklocal.models import VacuumMap
 
+from .codes import describe, end_reason
 from .const import CONF_NAME, DOMAIN
 from .coordinator import SharkCoordinator, SharkData
 from .entity import SharkBaseEntity
@@ -63,10 +64,27 @@ def _log_codes(data: SharkData, key: str) -> list[str] | None:
 
 
 def _last_code(data: SharkData, key: str) -> str | None:
+    """The last code logged under *key*; "none" if the job logged none."""
     codes = _log_codes(data, key)
     if codes is None:
         return None
-    return codes[-1] if codes else "none"
+    if not codes:
+        return "none"
+    return end_reason(codes[-1]) if key == "DT_WFF_TERM_CODE" else codes[-1]
+
+
+def _code_attrs(data: SharkData, key: str) -> dict[str, Any]:
+    # The raw code is the stable thing for automations to match on.
+    return {"code": _last_code(data, key)}
+
+
+def _warning_attrs(data: SharkData) -> dict[str, Any]:
+    codes = _log_codes(data, "DT_WARNING_CODE")
+    return {
+        **_code_attrs(data, "DT_WARNING_CODE"),
+        "warnings": None if codes is None else [describe(code) for code in codes],
+        "warning_codes": codes,
+    }
 
 
 SENSORS: tuple[SharkSensorDescription, ...] = (
@@ -94,7 +112,7 @@ SENSORS: tuple[SharkSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.SECONDS,
         suggested_unit_of_measurement=UnitOfTime.MINUTES,
         mqtt_only=True,
-        value_fn=lambda data: (job := _last_job(data)) and job.job_duration,
+        value_fn=lambda data: (job := _last_job(data)) and job.clean_time,
     ),
     SharkSensorDescription(
         key="last_clean_start",
@@ -110,22 +128,24 @@ SENSORS: tuple[SharkSensorDescription, ...] = (
         translation_key="last_warning",
         entity_category=EntityCategory.DIAGNOSTIC,
         mqtt_only=True,
-        value_fn=lambda data: _last_code(data, "DT_WARNING_CODE"),
-        attrs_fn=lambda data: {"warnings": _log_codes(data, "DT_WARNING_CODE")},
+        value_fn=lambda data: describe(_last_code(data, "DT_WARNING_CODE")),
+        attrs_fn=_warning_attrs,
     ),
     SharkSensorDescription(
         key="last_end_reason",
         translation_key="last_end_reason",
         entity_category=EntityCategory.DIAGNOSTIC,
         mqtt_only=True,
-        value_fn=lambda data: _last_code(data, "DT_WFF_TERM_CODE"),
+        value_fn=lambda data: describe(_last_code(data, "DT_WFF_TERM_CODE")),
+        attrs_fn=lambda data: _code_attrs(data, "DT_WFF_TERM_CODE"),
     ),
     SharkSensorDescription(
         key="last_dock_reason",
         translation_key="last_dock_reason",
         entity_category=EntityCategory.DIAGNOSTIC,
         mqtt_only=True,
-        value_fn=lambda data: _last_code(data, "DT_DOCK_CODE"),
+        value_fn=lambda data: describe(_last_code(data, "DT_DOCK_CODE")),
+        attrs_fn=lambda data: _code_attrs(data, "DT_DOCK_CODE"),
     ),
     SharkSensorDescription(
         key="rssi",
