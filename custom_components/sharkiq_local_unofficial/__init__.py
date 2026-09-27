@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from functools import partial
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -46,10 +47,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # scan_interval lives in options (editable post-setup), not data.
     scan_interval: int = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
-    client = VacuumClient(
-        host=host,
-        rest_mappings=mapping,
-        mqtt_mappings=mapping if use_mqtt else None,
+    # Construction reads the mapping YAML and builds an SSL context — blocking
+    # I/O that must stay out of the event loop.
+    client = await hass.async_add_executor_job(
+        partial(
+            VacuumClient,
+            host=host,
+            rest_mappings=mapping,
+            mqtt_mappings=mapping if use_mqtt else None,
+        )
     )
 
     # VacuumClient supports async-context-manager use; we manage it manually

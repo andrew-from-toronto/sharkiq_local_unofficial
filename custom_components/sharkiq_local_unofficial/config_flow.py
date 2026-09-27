@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from functools import partial
 from typing import Any
 
 import voluptuous as vol
@@ -13,7 +14,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.const import CONF_HOST, CONF_NAME
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 
 from sharklocal import (
@@ -47,12 +48,18 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
-async def _probe(host: str, mapping: str, use_mqtt: bool) -> str | None:
+async def _probe(
+    hass: HomeAssistant, host: str, mapping: str, use_mqtt: bool
+) -> str | None:
     """Try to talk to the vacuum. Returns the MAC address as a unique ID, or None."""
-    client = VacuumClient(
-        host=host,
-        rest_mappings=mapping,
-        mqtt_mappings=mapping if use_mqtt else None,
+    # Construction does blocking I/O (mapping YAML, SSL context).
+    client = await hass.async_add_executor_job(
+        partial(
+            VacuumClient,
+            host=host,
+            rest_mappings=mapping,
+            mqtt_mappings=mapping if use_mqtt else None,
+        )
     )
     try:
         async with client:
@@ -101,7 +108,7 @@ class SharkIQLocalConfigFlow(ConfigFlow, domain=DOMAIN):
             # Make host the fallback unique ID; replaced by MAC if we can read it.
             unique_id = host
             try:
-                mac = await _probe(host, mapping, use_mqtt)
+                mac = await _probe(self.hass, host, mapping, use_mqtt)
                 if mac:
                     unique_id = mac
             except ConnectError:

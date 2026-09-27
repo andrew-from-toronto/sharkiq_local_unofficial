@@ -11,7 +11,7 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/charger68/sharkiq_local_unofficial/issues",
   "requirements": [
-    "git+https://github.com/andrew-from-toronto/sharklocal@c439c19ccb434a076a20e5493ee01b9c97a095da#sharklocal==0.3.0.dev1",
+    "git+https://github.com/andrew-from-toronto/sharklocal@0618bc56e81de50685bf89dee48fd22991681541#sharklocal==0.3.0.dev2",
     "pillow"
   ],
   "version": "0.4.0"
