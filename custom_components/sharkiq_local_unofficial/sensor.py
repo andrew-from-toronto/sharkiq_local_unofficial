@@ -84,23 +84,22 @@ def _last_code(data: SharkData, key: str) -> str | None:
 def _clean_mode(data: SharkData) -> str | None:
     """The last job's cleaning mode code: "Cleaning mode: ROOM_SELECTION" -> ROOM_SELECTION.
 
-    The robot logs a mode only for a room selection, and logs a spot clean as
-    one too (of its saved spot zone), so the report's selected rooms tell the
-    rest apart (measured 2026-09-27): none selected is a whole-home job, the
-    spot zone alone is a spot clean. WHOLE_HOME and SPOT are this
-    integration's names, not codes the robot sends.
+    The robot logs a mode for some room selections only, and a spot clean as
+    one of those (of its saved spot zone) when it logs one at all, so the
+    report's selected rooms decide (measured 2026-09-27): the spot zone alone
+    is a spot clean, logged or not; none selected is a whole-home job. SPOT
+    and WHOLE_HOME are this integration's names, not codes the robot sends.
     """
     codes = _log_codes(data, "DT_CLEANING_MODE")
     if codes is None:
         return None
     job = data.persisted_map
     selected = [room for room in job.rooms if room.selected] if job else []
-    if not codes:
-        return "WHOLE_HOME" if job and job.rooms and not selected else "none"
-    mode = codes[-1].split(":", 1)[-1].strip()
-    if mode == "ROOM_SELECTION" and selected and all(room.name == SPOT_ROOM_NAME for room in selected):
+    if selected and all(room.name == SPOT_ROOM_NAME for room in selected):
         return "SPOT"
-    return mode
+    if codes:
+        return codes[-1].split(":", 1)[-1].strip()
+    return "WHOLE_HOME" if job and job.rooms and not selected else "none"
 
 
 def _log_numbers(job: VacuumMap, predicate: Callable[[str], bool]) -> list[int]:

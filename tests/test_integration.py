@@ -79,6 +79,14 @@ async def test_a_whole_home_job_reads_whole_home(hass, entry, robot):
     assert (mode.state, mode.attributes["code"]) == ("Whole home", "WHOLE_HOME")
 
 
+async def test_a_spot_job_that_logged_no_mode_reads_spot(hass, entry, robot):
+    # A real spot report: the spot zone selected, no DT_CLEANING_MODE logged.
+    await setup(hass, entry)
+    await push(hass, entry, docked_status(map=decode_frame("sharkiq_spot_report_frame.b64")))
+    mode = hass.states.get("sensor.basement_shark_last_clean_mode")
+    assert (mode.state, mode.attributes["code"]) == ("Spot", "SPOT")
+
+
 async def test_a_spot_job_reads_spot(hass, entry, robot):
     # The robot logs a spot clean as a room selection of its saved spot zone.
     await setup(hass, entry)
