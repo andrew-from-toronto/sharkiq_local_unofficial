@@ -12,7 +12,15 @@ from PIL import Image, ImageDraw, ImageFont
 
 from sharklocal.models import MapGrid, MapPoint, VacuumMap
 
-SCALE = 4  # pixels per grid cell (the basement grid is ~191 x 105 cells)
+SCALE = 6  # pixels per grid cell (the basement grid is ~191 x 105 cells)
+# Map cards shrink the picture to the card's width, so label size is set as a
+# fraction of the picture's width rather than in pixels.
+LABEL_WIDTH_FRACTION = 1 / 42
+
+
+def _w(width: float) -> int:
+    """A line width given at SCALE 4, at the current scale."""
+    return max(1, round(width * SCALE / 4))
 
 BACKGROUND = (22, 22, 30, 0)
 FLOOR = (120, 130, 150, 255)
@@ -69,11 +77,11 @@ def render_map(
 
     for room in source.named_rooms:
         if room.name in target_rooms and len(room.polygon) >= 3:
-            _dashed_polygon(draw, [px(p) for p in room.polygon], TARGET_EDGE, width=3)
+            _dashed_polygon(draw, [px(p) for p in room.polygon], TARGET_EDGE, width=_w(3))
     if len(zone) >= 3:
         points = [px(p) for p in zone]
         draw.polygon(points, fill=ZONE_FILL)
-        _dashed_polygon(draw, points, ZONE_EDGE, width=3)
+        _dashed_polygon(draw, points, ZONE_EDGE, width=_w(3))
 
     for feature in source.features:
         if len(feature.points) >= 2:
@@ -81,17 +89,17 @@ def render_map(
             draw.line(
                 [px(p) for p in feature.points],
                 fill=DOOR if door else EDGE,
-                width=4 if door else 2,
+                width=_w(4) if door else _w(2),
             )
 
     if len(vacuum_map.path) >= 2:
-        draw.line([px(p) for p in vacuum_map.path], fill=PATH, width=2, joint="curve")
+        draw.line([px(p) for p in vacuum_map.path], fill=PATH, width=_w(2), joint="curve")
 
     if (dock := source.dock) is not None:
         # A ring wider than the robot, so it still shows with the robot parked on it.
         x, y = px((dock.x, dock.y))
         r = SCALE * 2.6
-        draw.ellipse((x - r, y - r, x + r, y + r), outline=DOCK, width=3)
+        draw.ellipse((x - r, y - r, x + r, y + r), outline=DOCK, width=_w(3))
 
     if (robot := vacuum_map.robot) is not None:
         centre = px((robot.x, robot.y))
@@ -102,9 +110,9 @@ def render_map(
             centre[0] + math.cos(robot.heading) * radius * 2,
             centre[1] - math.sin(robot.heading) * radius * 2,
         )
-        draw.line([centre, tip], fill=OUTLINE, width=3)
+        draw.line([centre, tip], fill=OUTLINE, width=_w(3))
 
-    font = ImageFont.load_default(size=SCALE * 3)
+    font = ImageFont.load_default(size=max(SCALE * 3, round(width * LABEL_WIDTH_FRACTION)))
     for room in source.named_rooms:
         if not room.polygon:
             continue
@@ -117,7 +125,8 @@ def render_map(
         cx += max(0, 4 - left) - max(0, right - (width - 4))
         cy += max(0, 3 - top) - max(0, bottom - (height - 3))
         left, top, right, bottom = draw.textbbox((cx, cy), name, font=font, anchor="mm")
-        draw.rectangle((left - 3, top - 2, right + 3, bottom + 2), fill=LABEL_BG)
+        pad = max(3, font.size // 4)
+        draw.rectangle((left - pad, top - pad // 2, right + pad, bottom + pad // 2), fill=LABEL_BG)
         draw.text((cx, cy), name, font=font, fill=(255, 255, 255, 255), anchor="mm")
 
     buffer = io.BytesIO()
@@ -266,5 +275,5 @@ def _disc(draw: ImageDraw.ImageDraw, centre: tuple[float, float], radius: float,
         (x - radius, y - radius, x + radius, y + radius),
         fill=fill,
         outline=OUTLINE,
-        width=2,
+        width=_w(2),
     )
