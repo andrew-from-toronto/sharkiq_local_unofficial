@@ -25,7 +25,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from sharklocal import codes as robot_codes
-from sharklocal.models import VacuumMap
+from sharklocal.models import SPOT_ROOM_NAME, VacuumMap
 
 from .codes import advice, describe, end_reason
 from .const import CONF_NAME, DOMAIN
@@ -82,13 +82,25 @@ def _last_code(data: SharkData, key: str) -> str | None:
 
 
 def _clean_mode(data: SharkData) -> str | None:
-    """The last job's cleaning mode code: "Cleaning mode: ROOM_SELECTION" -> ROOM_SELECTION."""
+    """The last job's cleaning mode code: "Cleaning mode: ROOM_SELECTION" -> ROOM_SELECTION.
+
+    The robot logs a mode only for a room selection, and logs a spot clean as
+    one too (of its saved spot zone), so the report's selected rooms tell the
+    rest apart (measured 2026-09-27): none selected is a whole-home job, the
+    spot zone alone is a spot clean. WHOLE_HOME and SPOT are this
+    integration's names, not codes the robot sends.
+    """
     codes = _log_codes(data, "DT_CLEANING_MODE")
     if codes is None:
         return None
+    job = data.persisted_map
+    selected = [room for room in job.rooms if room.selected] if job else []
     if not codes:
-        return "none"
-    return codes[-1].split(":", 1)[-1].strip()
+        return "WHOLE_HOME" if job and job.rooms and not selected else "none"
+    mode = codes[-1].split(":", 1)[-1].strip()
+    if mode == "ROOM_SELECTION" and selected and all(room.name == SPOT_ROOM_NAME for room in selected):
+        return "SPOT"
+    return mode
 
 
 def _log_numbers(job: VacuumMap, predicate: Callable[[str], bool]) -> list[int]:

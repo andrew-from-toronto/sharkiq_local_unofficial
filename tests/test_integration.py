@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import dataclasses
 from http import HTTPStatus
 
 import pytest
@@ -12,7 +13,8 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import area_registry as ar, entity_registry as er
 
 from sharklocal import ConnectError
-from sharklocal.models import VacuumMode
+from sharklocal.models import SPOT_ROOM_NAME, MapRoom, VacuumMode
+from sharklocal.vacuum_map import spot_polygon
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.sharkiq_local_unofficial.const import DOMAIN
@@ -67,6 +69,25 @@ async def test_persisted_map_fills_in_the_last_job(hass, entry, robot):
     assert dock.attributes["code"] == "DE_USR_CTR_DOCK"
     end = hass.states.get("sensor.basement_shark_last_job_end_reason")
     assert (end.state, end.attributes["code"]) == ("Finished normally", "NORMAL")
+
+
+async def test_a_whole_home_job_reads_whole_home(hass, entry, robot):
+    # A real whole-home report: no DT_CLEANING_MODE, no room selected.
+    await setup(hass, entry)
+    await push(hass, entry, docked_status(map=decode_frame("sharkiq_whole_home_report_frame.b64")))
+    mode = hass.states.get("sensor.basement_shark_last_clean_mode")
+    assert (mode.state, mode.attributes["code"]) == ("Whole home", "WHOLE_HOME")
+
+
+async def test_a_spot_job_reads_spot(hass, entry, robot):
+    # The robot logs a spot clean as a room selection of its saved spot zone.
+    await setup(hass, entry)
+    vacuum_map = decode_frame("sharkiq_persisted_map_frame.b64")
+    spot = MapRoom(SPOT_ROOM_NAME, spot_polygon(1.0, 2.0), selected=True)
+    vacuum_map.rooms = [dataclasses.replace(r, selected=False) for r in vacuum_map.rooms] + [spot]
+    await push(hass, entry, docked_status(map=vacuum_map))
+    mode = hass.states.get("sensor.basement_shark_last_clean_mode")
+    assert (mode.state, mode.attributes["code"]) == ("Spot", "SPOT")
 
 
 async def test_a_job_that_logged_no_code_reads_none(hass, entry, robot):

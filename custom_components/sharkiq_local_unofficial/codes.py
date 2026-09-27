@@ -184,6 +184,9 @@ STATES: dict[str, str] = {
 KNOWN: dict[str, str] = {
     # DT_WFF_TERM_CODE's reason once "Zone: n, " is stripped.
     "NORMAL": "Finished normally",
+    # Cleaning modes this integration derives from the report (sensor.py).
+    "WHOLE_HOME": "Whole home",
+    "SPOT": "Spot",
     "none": "None",
     "ERROR_NONE": "None",
     "WARN_NONE": "None",
