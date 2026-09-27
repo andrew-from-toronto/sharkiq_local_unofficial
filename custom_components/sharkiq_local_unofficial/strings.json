@@ -24,7 +24,7 @@
     "step": {
       "init": {
         "title": "Shark IQ Vacuum options",
-        "description": "How often to poll the vacuum for status updates. Faster polling means fresher battery level and quicker response in the UI; slower polling means less network traffic. 30s is the recommended default. Range: 5\u2013600 seconds.",
+        "description": "How often to poll the vacuum for status updates. Faster polling means fresher battery level and quicker response in the UI; slower polling means less network traffic. 30s is the recommended default. Range: 5–600 seconds.",
         "data": {
           "scan_interval": "Polling interval (seconds)"
         }
@@ -32,11 +32,80 @@
     }
   },
   "entity": {
+    "image": {
+      "map": {
+        "name": "Map"
+      }
+    },
     "sensor": {
-      "battery": { "name": "Battery" },
-      "rssi": { "name": "Signal strength" },
-      "ssid": { "name": "Wi-Fi SSID" },
-      "ip_address": { "name": "IP address" }
+      "battery": {
+        "name": "Battery"
+      },
+      "last_clean_area": {
+        "name": "Last clean area"
+      },
+      "last_clean_duration": {
+        "name": "Last clean duration"
+      },
+      "last_clean_start": {
+        "name": "Last clean start"
+      },
+      "last_warning": {
+        "name": "Last warning"
+      },
+      "last_end_reason": {
+        "name": "Last job end reason"
+      },
+      "last_dock_reason": {
+        "name": "Last dock reason"
+      },
+      "rssi": {
+        "name": "Signal strength"
+      },
+      "ssid": {
+        "name": "Wi-Fi SSID"
+      },
+      "ip_address": {
+        "name": "IP address"
+      }
+    },
+    "switch": {
+      "recharge_resume": {
+        "name": "Recharge & Resume"
+      },
+      "evac_resume": {
+        "name": "Evac & Resume"
+      }
+    }
+  },
+  "services": {
+    "clean_rooms": {
+      "name": "Clean rooms",
+      "description": "Cleans the named rooms from the robot's map. Unlike Clean area, this can request a Matrix Clean.",
+      "fields": {
+        "rooms": {
+          "name": "Rooms",
+          "description": "Room names as shown in the SharkClean app (case and trailing dots are ignored). The vacuum's rooms attribute lists them."
+        },
+        "matrix": {
+          "name": "Matrix Clean",
+          "description": "Clean the rooms twice, in a crosshatch."
+        }
+      }
+    },
+    "clean_spot": {
+      "name": "Clean spot",
+      "description": "Spot-cleans a square of about 1.5 m around a point on the robot's map.",
+      "fields": {
+        "x": {
+          "name": "X",
+          "description": "Map x coordinate, in metres."
+        },
+        "y": {
+          "name": "Y",
+          "description": "Map y coordinate, in metres."
+        }
+      }
     }
   }
 }

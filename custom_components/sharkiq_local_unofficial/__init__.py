@@ -7,6 +7,9 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.storage import Store
+from homeassistant.helpers.typing import ConfigType
 
 from sharklocal import SharklocalError, VacuumClient
 
@@ -21,9 +24,18 @@ from .const import (
     DOMAIN,
     PLATFORMS,
 )
-from .coordinator import SharkCoordinator
+from .coordinator import STORAGE_VERSION, SharkCoordinator
+from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the integration's services."""
+    async_setup_services(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -47,11 +59,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except SharklocalError as err:
         raise ConfigEntryNotReady(f"Could not connect to {host}: {err}") from err
 
-    coordinator = SharkCoordinator(hass, client, entry.entry_id, host, scan_interval)
+    coordinator = SharkCoordinator(
+        hass, client, entry.entry_id, host, scan_interval, use_mqtt
+    )
 
     try:
         await coordinator.async_setup()
         await coordinator.async_config_entry_first_refresh()
+        await coordinator.async_start_monitoring()
     except Exception:
         # If first refresh failed, close the client we just opened.
         await client.close()
@@ -84,3 +99,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator: SharkCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
         await coordinator.client.close()
     return unload_ok
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Delete the stored map when the vacuum is removed."""
+    await Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.map").async_remove()
