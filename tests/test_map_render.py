@@ -81,3 +81,30 @@ def test_draws_a_live_target():
 
     pictures = {render_map(live, persisted, t) for t in (nothing, rooms, zone)}
     assert len(pictures) == 3
+
+
+def test_docked_hides_the_robot_and_a_whole_home_job_is_purple():
+    import dataclasses
+
+    from sharklocal.models import MapPose
+
+    persisted = decode_frame("sharkiq_persisted_map_frame.b64")
+    away = dataclasses.replace(persisted, poses=[MapPose(-4.8, 2.6, 0.785)])
+    moving, parked = render_map(away), render_map(away, docked=True)
+    assert moving != parked
+
+    idle = Image.open(io.BytesIO(render_map(persisted, docked=True))).convert("RGBA")
+    busy = Image.open(io.BytesIO(render_map(persisted, whole_home=True))).convert("RGBA")
+    # Somewhere on the floor the whole-home tint turns the near-white purple.
+    def purple_pixels(image):
+        return sum(1 for r, g, b, a in image.getdata() if a and b > r + 40 and b > g + 60)
+
+    assert purple_pixels(busy) > purple_pixels(idle)
+
+
+def test_a_map_without_walls_or_rooms_still_renders():
+    from sharklocal.models import MapGrid, MapPoint, VacuumMap
+
+    grid = MapGrid(resolution=0.06, width=4, height=3, origin=MapPoint(0, 0), cells=bytes([0x0F] * 12))
+    image = Image.open(io.BytesIO(render_map(VacuumMap(grid=grid))))
+    assert image.size[0] > 0
