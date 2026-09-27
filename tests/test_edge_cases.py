@@ -342,3 +342,18 @@ async def test_entities_without_data(hass, entry, robot):
     battery = entity(hass, "sensor.basement_shark_battery")
     assert battery.native_value is None
     assert battery.extra_state_attributes is None
+
+
+@pytest.mark.parametrize("typed", ["Bathroom", "bathroom", "BATHROOM.", " bath room "])
+async def test_room_names_match_without_punctuation(hass, entry, robot, typed):
+    # A map card room id may only hold letters, digits, spaces and underscores.
+    await setup(hass, entry)
+    await push_persisted_map(hass, entry)
+
+    await hass.services.async_call(
+        DOMAIN, "clean_rooms", {"entity_id": VACUUM, "rooms": [typed]}, blocking=True
+    )
+
+    from .conftest import fixture_bytes
+
+    assert robot.payloads == [fixture_bytes("sharkiq_cmd_room_clean.b64")]

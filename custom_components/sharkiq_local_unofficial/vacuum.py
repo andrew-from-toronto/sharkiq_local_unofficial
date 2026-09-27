@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 from homeassistant.components.vacuum import (
@@ -184,8 +185,10 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
         """Map requested names to the map's exact room names.
 
         The app lets rooms carry stray whitespace and punctuation ("Bathroom. ")
-        that nobody will type, so matching ignores case, surrounding spaces and
-        trailing dots — but the robot must be sent the name exactly as stored.
+        that nobody will type — and map cards only accept letters, digits,
+        spaces and underscores in a room id — so matching ignores case and
+        everything but letters and digits. The robot is still sent the name
+        exactly as stored.
         """
         known = self._room_names()
         if not known:
@@ -194,7 +197,7 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
             )
 
         def key(name: str) -> str:
-            return name.strip().rstrip(".").strip().casefold()
+            return re.sub(r"[\W_]+", "", name.casefold())
 
         by_key = {key(name): name for name in known}
         resolved: list[str] = []
