@@ -223,6 +223,17 @@ async def test_map_image_follows_the_live_frames(hass, entry, robot, hass_client
     assert hass.states.get("image.basement_shark_map").state != first.state
 
 
+async def test_map_publishes_calibration_for_map_cards(hass, entry, robot):
+    await setup(hass, entry)
+    assert "calibration_points" not in hass.states.get("image.basement_shark_map").attributes
+
+    await push_persisted_map(hass, entry)
+
+    points = hass.states.get("image.basement_shark_map").attributes["calibration_points"]
+    assert len(points) == 3
+    assert set(points[0]) == {"vacuum", "map"}
+
+
 async def test_without_mqtt_only_the_rest_entities_exist(hass, robot):
     entry = MockConfigEntry(
         domain=DOMAIN, data={**ENTRY_DATA, "use_mqtt": False}, title="Basement Shark"

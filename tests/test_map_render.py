@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import io
 
+import pytest
+
 from PIL import Image
 
 from custom_components.sharkiq_local_unofficial.map_render import SCALE, render_map
@@ -38,10 +40,32 @@ def test_draws_the_saved_spot_zone_and_not_as_a_room():
     with_zone = dataclasses.replace(plain, rooms=[*rooms, spot])
 
     assert render_map(with_zone) != render_map(plain)
-    # A zone reaching past everything else grows the canvas to fit it.
+    # A zone never resizes the picture (it would move everything under a
+    # map card's calibration); one reaching past the map is clipped.
     far = dataclasses.replace(spot, polygon=spot_polygon(8.0, 0.0))
     wide = dataclasses.replace(plain, rooms=[*rooms, far])
-    assert Image.open(io.BytesIO(render_map(wide))).size[0] > Image.open(io.BytesIO(render_map(plain))).size[0]
+    assert Image.open(io.BytesIO(render_map(wide))).size == Image.open(io.BytesIO(render_map(plain))).size
+
+
+def test_calibration_points_match_the_drawing():
+    from custom_components.sharkiq_local_unofficial.map_render import Canvas
+
+    persisted = decode_frame("sharkiq_persisted_map_frame.b64")
+    canvas = Canvas.fit(persisted)
+    assert (canvas.width, canvas.height) == Image.open(io.BytesIO(render_map(persisted))).size
+
+    # Solve the affine map a card derives from the three points, and check it
+    # lands the dock exactly where the renderer draws it.
+    (p0, p1, p2) = canvas.calibration_points()
+    sx = p1["map"]["x"] - p0["map"]["x"]  # pixels per metre along x
+    sy = p2["map"]["y"] - p0["map"]["y"]  # pixels per metre along y (negative: y up)
+    dock = persisted.dock
+    card_x = p0["map"]["x"] + (dock.x - p0["vacuum"]["x"]) * sx
+    card_y = p0["map"]["y"] + (dock.y - p0["vacuum"]["y"]) * sy
+    drawn_x, drawn_y = canvas.px((dock.x, dock.y))
+    assert card_x == pytest.approx(drawn_x, abs=0.05)
+    assert card_y == pytest.approx(drawn_y, abs=0.05)
+    assert sy < 0 < sx
 
 
 def test_draws_a_live_target():

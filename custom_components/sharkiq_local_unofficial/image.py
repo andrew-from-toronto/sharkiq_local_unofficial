@@ -1,6 +1,8 @@
 """Image platform for Shark IQ (Local): the live map."""
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.image import ImageEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -12,7 +14,7 @@ from sharklocal.models import VacuumMap
 from .const import CONF_NAME, DOMAIN
 from .coordinator import JobTarget, SharkCoordinator
 from .entity import SharkBaseEntity
-from .map_render import render_map
+from .map_render import Canvas, render_map
 
 
 async def async_setup_entry(
@@ -71,6 +73,19 @@ class SharkMapImage(SharkBaseEntity, ImageEntity):
     def _handle_coordinator_update(self) -> None:
         self._track_map()
         super()._handle_coordinator_update()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Calibration for vacuum map cards: map metres to picture pixels.
+
+        With it, a card such as the Xiaomi Vacuum Map Card can turn a tap on the
+        picture into map coordinates for the clean_spot service (set the card's
+        coordinates_rounding to false: the map is in metres).
+        """
+        if self._drawn is None:
+            return None
+        canvas = Canvas.fit(self._drawn[0], self._drawn[1])
+        return {"calibration_points": canvas.calibration_points()}
 
     async def async_image(self) -> bytes | None:
         """Return the rendered map, drawing it on first request."""
