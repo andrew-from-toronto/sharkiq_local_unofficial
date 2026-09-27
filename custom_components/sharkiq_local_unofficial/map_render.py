@@ -36,6 +36,9 @@ DP_PER_FLOOR_WIDTH = 1 / 329
 # The app draws its markers at a fixed size because its map is zoomed in; on a
 # whole-floor picture that is ~3.4x life size, so they are drawn at half.
 MARKER_SCALE = 0.5
+ROBOT_DISC_FRACTION = 32.1 / 104  # the robot disc's diameter within its drawable
+DOCK_BODY_FRACTION = 18 / 36  # the base's width within live_cleaning_robot_dock
+DOCK_TO_ROBOT = 1.15  # dock width : robot diameter
 
 ICONS = Path(__file__).parent / "icons"
 FONT = Path(__file__).parent / "fonts" / "Montserrat-Bold.ttf"
@@ -85,8 +88,8 @@ def render_map(
     Live frames carry no rooms, so room names and outlines come from
     *rooms_from* (the latest persisted map) when given. *target* (anything with
     ``rooms`` and ``zone``) is what a running job was sent to clean; without
-    one, the saved map's record of the last job is drawn. *docked* hides the
-    robot, as the app does; *whole_home* gives a running whole-home job the
+    one, the saved map's record of the last job is drawn. *docked* draws the
+    robot sitting on its dock, as the app does; *whole_home* gives a running whole-home job the
     app's purple look.
     """
     grid = vacuum_map.grid
@@ -160,19 +163,36 @@ def render_map(
     if len(zone) >= 3:
         _spot_zone(image, [px(p) for p in zone], dp)
 
-    # 9-10. Dock base, then the robot over it - hidden while docked, as the app does.
-    if (dock := source.dock) is not None:
-        base = _icon("dock_base.png").resize(
-            (round(36 * dp * MARKER_SCALE), round(20 * dp * MARKER_SCALE)), Image.Resampling.LANCZOS
+    # 9-10. Dock base, then the robot over it. Docked, the robot sits on its
+    # dock facing out, as in the app; the dock pose is where it sits then.
+    robot_size = round(104 * dp * MARKER_SCALE)
+    disc_radius = robot_size * ROBOT_DISC_FRACTION / 2
+    dock = source.dock
+    if dock is not None:
+        # Sized from the robot, not the drawable's own dp: the base proper is
+        # only 18 of its 36 units wide, and a real dock is a little wider
+        # than the robot it charges.
+        width = round(DOCK_TO_ROBOT * 2 * disc_radius / DOCK_BODY_FRACTION)
+        base = _icon("dock_base.png").resize((width, round(width * 20 / 36)), Image.Resampling.LANCZOS)
+        # The base's front edge faces up in the drawable; turn it to face the
+        # way the robot leaves, and set it behind the robot: Shark robots
+        # charge through contacts at the back (the log's CHARGE_BACK).
+        base = base.rotate(math.degrees(dock.heading) - 90, expand=True, resample=Image.Resampling.BICUBIC)
+        x, y = px((dock.x, dock.y))
+        behind = disc_radius * 0.9
+        _paste_centred(
+            image,
+            base,
+            (x - math.cos(dock.heading) * behind, y + math.sin(dock.heading) * behind),
         )
-        _paste_centred(image, base, px((dock.x, dock.y)))
-    if (robot := vacuum_map.robot) is not None and not docked:
-        marker = _icon("robot.png").resize(
-            (round(104 * dp * MARKER_SCALE), round(104 * dp * MARKER_SCALE)), Image.Resampling.LANCZOS
-        )
+    pose = (dock.x, dock.y, dock.heading) if docked and dock is not None else None
+    if pose is None and (robot := vacuum_map.robot) is not None:
+        pose = (robot.x, robot.y, robot.heading)
+    if pose is not None:
+        marker = _icon("robot.png").resize((robot_size, robot_size), Image.Resampling.LANCZOS)
         # The drawable faces -x; headings are anticlockwise from +x, as PIL rotates.
-        marker = marker.rotate(math.degrees(robot.heading) - 180, resample=Image.Resampling.BICUBIC)
-        _paste_centred(image, marker, px((robot.x, robot.y)))
+        marker = marker.rotate(math.degrees(pose[2]) - 180, resample=Image.Resampling.BICUBIC)
+        _paste_centred(image, marker, px((pose[0], pose[1])))
 
     image = image.resize((canvas.width, canvas.height), Image.Resampling.LANCZOS)
     buffer = io.BytesIO()
