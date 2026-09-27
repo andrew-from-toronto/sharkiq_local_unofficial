@@ -32,6 +32,14 @@
     }
   },
   "entity": {
+    "button": {
+      "edge_clean": {
+        "name": "Edge clean"
+      },
+      "explore": {
+        "name": "Explore run"
+      }
+    },
     "image": {
       "map": {
         "name": "Map"
@@ -44,6 +52,13 @@
           "eco": "Eco",
           "normal": "Normal",
           "max": "Max"
+        }
+      },
+      "carpet_detect": {
+        "name": "Carpet detection",
+        "state": {
+          "auto": "Automatic",
+          "off": "Off"
         }
       }
     },
@@ -77,6 +92,30 @@
       },
       "ip_address": {
         "name": "IP address"
+      },
+      "error": {
+        "name": "Error"
+      },
+      "warning": {
+        "name": "Warning"
+      },
+      "robot_state": {
+        "name": "Robot state"
+      },
+      "temperature": {
+        "name": "Temperature"
+      },
+      "relocation": {
+        "name": "Position fix"
+      },
+      "suction_motor_speed": {
+        "name": "Suction motor speed"
+      },
+      "brushroll_speed": {
+        "name": "Brushroll speed"
+      },
+      "side_brush_speed": {
+        "name": "Side brush speed"
       }
     },
     "switch": {
@@ -85,6 +124,30 @@
       },
       "evac_resume": {
         "name": "Evac & Resume"
+      },
+      "clean_edge": {
+        "name": "CleanEdge"
+      },
+      "do_not_disturb": {
+        "name": "Do not disturb"
+      },
+      "carpet_boost": {
+        "name": "Carpet boost"
+      },
+      "child_lock": {
+        "name": "Child lock"
+      },
+      "silent_mode": {
+        "name": "Silent mode"
+      },
+      "button_sounds": {
+        "name": "Button sounds"
+      },
+      "underglow_lights": {
+        "name": "Underglow lights"
+      },
+      "continuous_cross_hatch": {
+        "name": "Continuous crosshatch"
       }
     }
   },

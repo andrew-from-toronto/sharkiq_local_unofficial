@@ -18,14 +18,16 @@ from homeassistant.const import (
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     EntityCategory,
     UnitOfArea,
+    UnitOfTemperature,
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from sharklocal import codes as robot_codes
 from sharklocal.models import VacuumMap
 
-from .codes import describe, end_reason
+from .codes import advice, describe, end_reason
 from .const import CONF_NAME, DOMAIN
 from .coordinator import SharkCoordinator, SharkData
 from .entity import SharkBaseEntity
@@ -87,6 +89,52 @@ def _warning_attrs(data: SharkData) -> dict[str, Any]:
     }
 
 
+def _live(codes: list[int] | None, table: dict[int, str]) -> list[str] | None:
+    """Names of the codes active now, zero ("none") dropped, each once."""
+    if codes is None:
+        return None
+    return list(dict.fromkeys(robot_codes.names(table, [c for c in codes if c])))
+
+
+def _live_errors(data: SharkData) -> list[str] | None:
+    return _live(data.status.errors, robot_codes.ERROR_CODES)
+
+
+def _live_warnings(data: SharkData) -> list[str] | None:
+    return _live(data.status.warnings, robot_codes.WARNING_CODES)
+
+
+def _first_described(names: list[str] | None) -> str | None:
+    if names is None:
+        return None
+    return describe(names[0]) if names else "None"
+
+
+def _error_attrs(data: SharkData) -> dict[str, Any]:
+    names = _live_errors(data) or []
+    return {
+        "code": names[0] if names else "ERROR_NONE",
+        "codes": names,
+        "errors": [describe(name) for name in names],
+        "advice": advice(names[0]) if names else None,
+    }
+
+
+def _live_warning_attrs(data: SharkData) -> dict[str, Any]:
+    names = _live_warnings(data) or []
+    return {
+        "code": names[0] if names else "WARN_NONE",
+        "codes": names,
+        "warnings": [describe(name) for name in names],
+    }
+
+
+def _named(value: int | None, table: dict[int, str]) -> str | None:
+    if value is None:
+        return None
+    return table.get(value, f"UNKNOWN_{value}")
+
+
 SENSORS: tuple[SharkSensorDescription, ...] = (
     SharkSensorDescription(
         key="battery",
@@ -146,6 +194,65 @@ SENSORS: tuple[SharkSensorDescription, ...] = (
         mqtt_only=True,
         value_fn=lambda data: describe(_last_code(data, "DT_DOCK_CODE")),
         attrs_fn=lambda data: _code_attrs(data, "DT_DOCK_CODE"),
+    ),
+    # Live, from every status frame.
+    SharkSensorDescription(
+        key="error",
+        translation_key="error",
+        mqtt_only=True,
+        value_fn=lambda data: _first_described(_live_errors(data)),
+        attrs_fn=_error_attrs,
+    ),
+    SharkSensorDescription(
+        key="warning",
+        translation_key="warning",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        mqtt_only=True,
+        value_fn=lambda data: _first_described(_live_warnings(data)),
+        attrs_fn=_live_warning_attrs,
+    ),
+    SharkSensorDescription(
+        key="robot_state",
+        translation_key="robot_state",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        mqtt_only=True,
+        value_fn=lambda data: describe(_named(data.status.state, robot_codes.SYSTEM_STATES)),
+        attrs_fn=lambda data: {"code": _named(data.status.state, robot_codes.SYSTEM_STATES)},
+    ),
+    SharkSensorDescription(
+        key="temperature",
+        translation_key="temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        mqtt_only=True,
+        value_fn=lambda data: data.status.temperature,
+    ),
+    SharkSensorDescription(
+        key="relocation",
+        translation_key="relocation",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        mqtt_only=True,
+        value_fn=lambda data: describe(_named(data.status.relocation, robot_codes.RELOCATION_STATES)),
+        attrs_fn=lambda data: {"code": _named(data.status.relocation, robot_codes.RELOCATION_STATES)},
+    ),
+    *(
+        SharkSensorDescription(
+            key=key,
+            translation_key=key,
+            state_class=SensorStateClass.MEASUREMENT,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
+            mqtt_only=True,
+            value_fn=lambda data, attr=attr: getattr(data.status, attr),
+        )
+        for key, attr in (
+            ("suction_motor_speed", "fan_speed"),
+            ("brushroll_speed", "brushroll_speed"),
+            ("side_brush_speed", "side_brush_speed"),
+        )
     ),
     SharkSensorDescription(
         key="rssi",

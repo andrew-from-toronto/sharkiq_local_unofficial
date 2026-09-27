@@ -1,6 +1,7 @@
 """Failure paths, restarts and the less travelled branches."""
 from __future__ import annotations
 
+import base64
 import dataclasses
 from unittest.mock import AsyncMock, patch
 
@@ -278,12 +279,13 @@ async def test_switch_off(hass, entry, robot):
         "switch", "turn_off", {"entity_id": "switch.basement_shark_recharge_resume"}, blocking=True
     )
 
-    assert robot.actions == ["recharge_resume_off"]
+    # Byte for byte the app's own Recharge & Resume off command.
+    assert robot.payloads == [base64.b64decode("OgJAAg==")]
 
 
 async def test_switch_failure_is_an_error(hass, entry, robot):
     await setup(hass, entry)
-    robot.answers["evac_resume_on"] = ConnectError("broker gone")
+    robot.answers["send"] = ConnectError("broker gone")
 
     with pytest.raises(HomeAssistantError, match="evac_resume"):
         await hass.services.async_call(

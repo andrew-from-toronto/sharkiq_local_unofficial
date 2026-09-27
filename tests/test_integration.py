@@ -1,6 +1,7 @@
 """End-to-end tests: entities, commands, the stored map."""
 from __future__ import annotations
 
+import base64
 from http import HTTPStatus
 
 import pytest
@@ -9,6 +10,8 @@ from homeassistant.components.vacuum import DOMAIN as VACUUM_DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import area_registry as ar, entity_registry as er
+
+from sharklocal.models import VacuumMode
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.sharkiq_local_unofficial.const import DOMAIN
@@ -194,18 +197,55 @@ async def test_locate_and_switches(hass, entry, robot):
         "switch", "turn_on", {"entity_id": "switch.basement_shark_evac_resume"}, blocking=True
     )
 
-    assert robot.actions == ["find_robot", "evac_resume_on"]
+    assert robot.actions == ["find_robot"]
+    # Byte for byte the app's own Evac & Resume on command.
+    assert robot.payloads == [base64.b64decode("OgI4AQ==")]
     # Not optimistic: the switch waits for the robot to report the change.
     assert hass.states.get("switch.basement_shark_evac_resume").state == "off"
     await push(hass, entry, docked_status(evac_resume=True))
     assert hass.states.get("switch.basement_shark_evac_resume").state == "on"
 
 
-async def test_pause_is_not_offered(hass, entry, robot):
-    # "stop" is the robot's return-to-dock; a pause button that sends it home lies.
+async def test_pause_and_resume(hass, entry, robot):
     await setup(hass, entry)
-    features = hass.states.get(VACUUM).attributes["supported_features"]
-    assert not features & 4  # VacuumEntityFeature.PAUSE
+    assert hass.states.get(VACUUM).attributes["supported_features"] & 4  # PAUSE
+
+    await hass.services.async_call(VACUUM_DOMAIN, "pause", {"entity_id": VACUUM}, blocking=True)
+    await push(hass, entry, docked_status(mode=VacuumMode.PAUSED, charging=False))
+    assert hass.states.get(VACUUM).state == "paused"
+    # Start is USR_CTR_RESUME: it resumes a paused job.
+    await hass.services.async_call(VACUUM_DOMAIN, "start", {"entity_id": VACUUM}, blocking=True)
+
+    assert robot.actions == ["pause", "start_cleaning"]
+
+
+async def test_a_live_fault_is_an_error_with_the_apps_words(hass, entry, robot):
+    await setup(hass, entry)
+    # ERROR_WHEEL_STUCK_L while cleaning, with the low-light warning twice.
+    await push(hass, entry, docked_status(mode=VacuumMode.CLEANING, errors=[19], warnings=[4, 4]))
+
+    assert hass.states.get(VACUUM).state == "error"
+    error = hass.states.get("sensor.basement_shark_error")
+    assert error.state == "Wheel is stuck"
+    assert error.attributes["code"] == "ERROR_WHEEL_STUCK_L"
+    assert error.attributes["advice"] == "Please clean the wheels and remove any debris."
+    warning = hass.states.get("sensor.basement_shark_warning")
+    assert warning.state == "Low light"
+    assert warning.attributes["codes"] == ["WARN_LOW_LIGHT"]
+
+    await push(hass, entry, docked_status(errors=[], warnings=[]))
+    assert hass.states.get("sensor.basement_shark_error").state == "None"
+    assert hass.states.get("sensor.basement_shark_error").attributes["code"] == "ERROR_NONE"
+    assert hass.states.get(VACUUM).state == "docked"
+
+
+async def test_state_and_temperature(hass, entry, robot):
+    await setup(hass, entry)
+    await push(hass, entry, docked_status(state=13, temperature=21))
+
+    state = hass.states.get("sensor.basement_shark_robot_state")
+    assert (state.state, state.attributes["code"]) == ("Charging", "SYS_ST_CHARGING")
+    assert hass.states.get("sensor.basement_shark_temperature").state == "21"
 
 
 async def test_map_image_follows_the_live_frames(hass, entry, robot, hass_client):

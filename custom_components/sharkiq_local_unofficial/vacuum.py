@@ -36,6 +36,8 @@ MODE_TO_ACTIVITY: dict[VacuumMode, VacuumActivity] = {
     VacuumMode.DOCKED: VacuumActivity.DOCKED,
     VacuumMode.IDLE: VacuumActivity.IDLE,
     VacuumMode.EXPLORING: VacuumActivity.CLEANING,
+    VacuumMode.PAUSED: VacuumActivity.PAUSED,
+    VacuumMode.ERROR: VacuumActivity.ERROR,
 }
 
 FAN_SPEEDS = [level.value for level in SuctionLevel]
@@ -62,8 +64,7 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
     _attr_name = None  # uses device name
     _attr_fan_speed_list = FAN_SPEEDS
 
-    # "stop" is the robot's return-to-dock command and no pause command has
-    # been captured, so PAUSE is deliberately not offered.
+    # "stop" is the robot's return-to-dock command, so stopping sends it home.
     _BASE_FEATURES = (
         VacuumEntityFeature.STATE
         | VacuumEntityFeature.START
@@ -72,7 +73,8 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
     )
     # Commands that exist only on the MQTT transport.
     _MQTT_FEATURES = (
-        VacuumEntityFeature.FAN_SPEED
+        VacuumEntityFeature.PAUSE
+        | VacuumEntityFeature.FAN_SPEED
         | VacuumEntityFeature.LOCATE
         | VacuumEntityFeature.CLEAN_AREA
     )
@@ -109,6 +111,9 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
         if self.coordinator.data is None:
             return None
         status = self.coordinator.data.status
+        # A live fault is an error whatever the state field says.
+        if any(status.errors or ()):
+            return VacuumActivity.ERROR
         return MODE_TO_ACTIVITY.get(status.mode, VacuumActivity.IDLE)
 
     @property
@@ -148,6 +153,10 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
         """Start cleaning."""
         await self._command("start_cleaning", self.coordinator.client.start_cleaning())
         self.coordinator.set_job_target(None)
+
+    async def async_pause(self) -> None:
+        """Pause the job; Start resumes it."""
+        await self._command("pause", self.coordinator.client.pause())
 
     async def async_stop(self, **kwargs: Any) -> None:
         """Stop cleaning (the robot returns to its dock)."""
