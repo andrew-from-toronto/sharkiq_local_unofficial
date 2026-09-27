@@ -9,7 +9,7 @@ from custom_components.sharkiq_local_unofficial.codes import describe, end_reaso
 @pytest.mark.parametrize(
     "code, text",
     [
-        ("WARN_MM_LOWLIGHT", "Low light (mapping)"),
+        ("WARN_MM_LOWLIGHT", "Map not updated: low light"),
         ("DE_USR_CTR_DOCK", "Sent to dock by user"),
         ("NORMAL", "Finished normally"),
         ("none", "None"),

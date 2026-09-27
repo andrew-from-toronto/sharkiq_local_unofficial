@@ -8,9 +8,10 @@ import pytest
 
 from homeassistant.components.vacuum import DOMAIN as VACUUM_DOMAIN
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import area_registry as ar, entity_registry as er
 
+from sharklocal import ConnectError
 from sharklocal.models import VacuumMode
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -57,9 +58,9 @@ async def test_persisted_map_fills_in_the_last_job(hass, entry, robot):
     minutes = float(hass.states.get("sensor.basement_shark_last_clean_duration").state)
     assert minutes == pytest.approx(1.68, abs=0.01)
     warning = hass.states.get("sensor.basement_shark_last_warning")
-    assert warning.state == "Low light (mapping)"
+    assert warning.state == "Map not updated: low light"
     assert warning.attributes["code"] == "WARN_MM_LOWLIGHT"
-    assert warning.attributes["warnings"] == ["Low light (mapping)"]
+    assert warning.attributes["warnings"] == ["Map not updated: low light"]
     assert warning.attributes["warning_codes"] == ["WARN_MM_LOWLIGHT"]
     dock = hass.states.get("sensor.basement_shark_last_dock_reason")
     assert dock.state == "Sent to dock by user"
@@ -189,6 +190,62 @@ async def test_fan_speed_is_held_because_the_robot_never_reports_it(hass, entry,
     assert hass.states.get(VACUUM).attributes["fan_speed"] == "max"
 
 
+async def test_every_fresh_job_is_sent_the_held_suction(hass, entry, robot):
+    # The robot keeps a suction level for one job, then goes back to normal.
+    await setup(hass, entry)
+    await push_persisted_map(hass, entry)
+    await hass.services.async_call(
+        VACUUM_DOMAIN, "set_fan_speed", {"entity_id": VACUUM, "fan_speed": "eco"}, blocking=True
+    )
+    robot.actions.clear()
+
+    await hass.services.async_call(VACUUM_DOMAIN, "start", {"entity_id": VACUUM}, blocking=True)
+    await hass.services.async_call(
+        DOMAIN, "clean_rooms", {"entity_id": VACUUM, "rooms": ["Hallway"]}, blocking=True
+    )
+    await hass.services.async_call(
+        DOMAIN, "clean_spot", {"entity_id": VACUUM, "x": 1.0, "y": 2.0}, blocking=True
+    )
+
+    assert robot.actions == [
+        "set_suction_eco", "start_cleaning",
+        "set_suction_eco", "start_cleaning",
+        "start_cleaning",  # a spot clean runs its own fixed level
+    ]
+
+
+async def test_resume_is_not_sent_suction(hass, entry, robot):
+    await setup(hass, entry)
+    await hass.services.async_call(
+        VACUUM_DOMAIN, "set_fan_speed", {"entity_id": VACUUM, "fan_speed": "eco"}, blocking=True
+    )
+    await push(hass, entry, docked_status(mode=VacuumMode.PAUSED, charging=False))
+    robot.actions.clear()
+
+    await hass.services.async_call(VACUUM_DOMAIN, "start", {"entity_id": VACUUM}, blocking=True)
+
+    assert robot.actions == ["start_cleaning"]
+
+
+async def test_no_suction_chosen_sends_none(hass, entry, robot):
+    await setup(hass, entry)
+    await hass.services.async_call(VACUUM_DOMAIN, "start", {"entity_id": VACUUM}, blocking=True)
+    assert robot.actions == ["start_cleaning"]
+
+
+async def test_a_suction_that_will_not_send_stops_the_job(hass, entry, robot):
+    await setup(hass, entry)
+    await hass.services.async_call(
+        VACUUM_DOMAIN, "set_fan_speed", {"entity_id": VACUUM, "fan_speed": "eco"}, blocking=True
+    )
+    robot.answers["set_suction_eco"] = ConnectError("broker gone")
+    robot.actions.clear()
+
+    with pytest.raises(HomeAssistantError, match="set_suction"):
+        await hass.services.async_call(VACUUM_DOMAIN, "start", {"entity_id": VACUUM}, blocking=True)
+    assert robot.actions == []
+
+
 async def test_locate_and_switches(hass, entry, robot):
     await setup(hass, entry)
 
@@ -272,11 +329,18 @@ async def test_a_live_fault_is_an_error_with_the_apps_words(hass, entry, robot):
 
 async def test_state_and_temperature(hass, entry, robot):
     await setup(hass, entry)
+    registry = er.async_get(hass)
+    # An RV2610 reports a constant 20, so the sensor starts disabled.
+    temperature = "sensor.basement_shark_temperature"
+    assert registry.async_get(temperature).disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    registry.async_update_entity(temperature, disabled_by=None)
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
     await push(hass, entry, docked_status(state=13, temperature=21))
 
     state = hass.states.get("sensor.basement_shark_robot_state")
     assert (state.state, state.attributes["code"]) == ("Charging", "SYS_ST_CHARGING")
-    assert hass.states.get("sensor.basement_shark_temperature").state == "21"
+    assert hass.states.get(temperature).state == "21"
 
 
 async def test_map_image_follows_the_live_frames(hass, entry, robot, hass_client):
@@ -436,6 +500,6 @@ async def test_mid_job_log_entries_become_events(hass, entry, robot):
         "host": "192.0.2.10",
         "key": "DT_WARNING_CODE",
         "code": "WARN_MM_LOWLIGHT",
-        "description": "Low light (mapping)",
+        "description": "Map not updated: low light",
         "time": 1790473219,
     }]

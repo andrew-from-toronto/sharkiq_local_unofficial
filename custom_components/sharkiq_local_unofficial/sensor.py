@@ -270,6 +270,10 @@ SENSORS: tuple[SharkSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         entity_category=EntityCategory.DIAGNOSTIC,
+        # An RV2610 reports exactly 20 in every frame, docked or cleaning, and
+        # the app never reads the field, so it is off until a model shows it
+        # moving.
+        entity_registry_enabled_default=False,
         mqtt_only=True,
         value_fn=lambda data: data.status.temperature,
     ),
@@ -286,6 +290,9 @@ SENSORS: tuple[SharkSensorDescription, ...] = (
         SharkSensorDescription(
             key=key,
             translation_key=key,
+            # Percent of full power: suction reads 50 on eco and 100 on max,
+            # never more.
+            native_unit_of_measurement=PERCENTAGE,
             state_class=SensorStateClass.MEASUREMENT,
             entity_category=EntityCategory.DIAGNOSTIC,
             entity_registry_enabled_default=False,

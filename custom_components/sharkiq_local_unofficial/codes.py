@@ -81,8 +81,31 @@ FAULTS: dict[str, tuple[str, str]] = {
 }
 
 # Warnings (field 6 / WarningCodeT, and DT_WARNING_CODE in the log). The app
-# has no text for these.
+# has no text for these (it shows only WARN_CLEANSENSE_DIRT, as a dialog).
 WARNINGS: dict[str, str] = {
+    # WARN_MM_* repeat the map manager's MMStatus (DT_MM_STATUS): its verdict on
+    # whether the run's map was used to update the saved one. Bookkeeping, not
+    # faults; the meanings are read from the names and PbMapSummary's matching
+    # flags, as nothing in the app explains them. WARN_MM_LOWLIGHT is logged by
+    # a lidar robot too, with no camera to be short of light.
+    "WARN_MM_ALLRIGHT": "Map updated",
+    "WARN_MM_FIRSTCLEAN": "First map made",
+    "WARN_MM_TRAINING": "Map still being learned",
+    "WARN_MM_NOTTRAINING": "Map not being learned",
+    "WARN_MM_AREASMALL": "Map not updated: area too small",
+    "WARN_MM_RESETFLOOR1": "Map reset",
+    "WARN_MM_RESETFLOOR2": "Map reset",
+    "WARN_MM_SIMILARCHECK1": "Map compared with the saved one",
+    "WARN_MM_SIMILARCHECK2": "Map compared with the saved one",
+    "WARN_MM_SIMILARCHECK3": "Map compared with the saved one",
+    "WARN_MM_REPLACESUCC": "Saved map replaced",
+    "WARN_MM_NOTFROMSTATION": "Map not updated: did not start from the dock",
+    "WARN_MM_LOWLIGHT": "Map not updated: low light",
+    "WARN_MM_NOTFINISH": "Map not updated: job not finished",
+    "WARN_MM_NOTEFFIENCY": "Map not updated: run too slow for its area",
+    "WARN_MM_NEW_FLOOR": "New floor mapped",
+    "WARN_MM_UPDATE_FLOOR": "Floor map updated",
+    "WARN_MM_UPDATE_SLAM": "Navigation map updated",
     "WARNING_CHARGING_INTERRUPTED": "Charging interrupted",
     "WARN_BAD_RUN": "Run did not go well",
     "WARN_BATTERY_LOW": "Battery low",
@@ -93,12 +116,10 @@ WARNINGS: dict[str, str] = {
     "WARN_EVAUCATION_RESUME_OPEN": "Evac & Resume turned on",
     "WARN_FIND_ME": "Locating",
     "WARN_INCLINE": "On an incline",
-    "WARN_LENS_DIRTY": "Camera lens dirty",
+    "WARN_LENS_DIRTY": "Camera lens dirty",  # this and the two *_LIGHT: the camera models' visual tracker
     "WARN_LIDAR_BROKEN": "Lidar sensor problem",
     "WARN_LOW_LIGHT": "Low light",
     "WARN_MAP_SYNC_FAILED": "Map sync failed",
-    "WARN_MM_LOWLIGHT": "Low light (mapping)",  # MM = map manager, as its neighbours show; not a camera
-    "WARN_MM_NOTFINISH": "Map not finished",
     "WARN_NO_LIGHT": "Too dark",
     "WARN_OVER_CURRENT": "Motor overloaded",
     "WARN_PICK_UP": "Picked up",

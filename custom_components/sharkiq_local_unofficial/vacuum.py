@@ -152,6 +152,8 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
         """Start cleaning, or resume a paused job."""
         data = self.coordinator.data
         resuming = data is not None and data.status.mode == VacuumMode.PAUSED
+        if not resuming:
+            await self._reapply_suction()
         await self._command("start_cleaning", self.coordinator.client.start_cleaning())
         # Start is USR_CTR_RESUME: a paused room or spot job carries on where
         # it was (measured 2026-09-27), so only a fresh start is whole-home.
@@ -173,6 +175,25 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
     async def async_locate(self, **kwargs: Any) -> None:
         """Play the locate sound."""
         await self._command("find_robot", self.coordinator.client.find_robot())
+
+    async def _reapply_suction(self) -> None:
+        """Send the held suction level before a fresh job starts.
+
+        The robot keeps a level for one job and then goes back to normal
+        (measured 2026-09-27: eco set while docked ran the next job at 50%,
+        and the job after it at 82% with nothing sent), so a level chosen here
+        would otherwise hold for one job while the select went on showing it.
+        A spot clean runs its own fixed level (90%) whatever is set, so it is
+        not sent there.
+        """
+        if self.coordinator.suction is None:
+            return
+        try:
+            await self.coordinator.client.set_suction(self.coordinator.suction)
+        except SharklocalError as err:
+            raise HomeAssistantError(
+                f"set_suction failed for {self.coordinator.host}: {err}"
+            ) from err
 
     async def async_set_fan_speed(self, fan_speed: str, **kwargs: Any) -> None:
         """Set the suction level."""
@@ -229,6 +250,7 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
         if matrix and not self.coordinator.capabilities.has_ultra_clean:
             raise ServiceValidationError("This robot type has no Matrix clean")
         names = self.resolve_rooms(rooms)
+        await self._reapply_suction()
         await self._command(
             "clean_rooms", self.coordinator.client.clean_rooms(names, deep=matrix)
         )
