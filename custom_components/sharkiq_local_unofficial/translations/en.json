@@ -116,6 +116,9 @@
       },
       "side_brush_speed": {
         "name": "Side brush speed"
+      },
+      "last_clean_mode": {
+        "name": "Last clean mode"
       }
     },
     "switch": {

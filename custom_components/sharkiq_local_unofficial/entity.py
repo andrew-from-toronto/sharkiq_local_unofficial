@@ -29,5 +29,6 @@ class SharkBaseEntity(CoordinatorEntity[SharkCoordinator]):
             manufacturer="SharkNinja",
             model="Shark IQ Robot",
             sw_version=meta["firmware"],
+            hw_version=meta["hardware"],
             configuration_url=f"https://{coordinator.host}",
         )

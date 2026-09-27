@@ -332,3 +332,55 @@ async def test_room_clean_records_its_rooms_and_a_full_clean_clears_them(hass, e
 
     await hass.services.async_call(VACUUM_DOMAIN, "start", {"entity_id": VACUUM}, blocking=True)
     assert coordinator.job_target is None
+
+
+async def test_last_job_details_and_firmware_from_the_log(hass, entry, robot):
+    from homeassistant.helpers import device_registry as dr
+
+    await setup(hass, entry)
+    await push_persisted_map(hass, entry)
+
+    mode = hass.states.get("sensor.basement_shark_last_clean_mode")
+    assert mode.state == "Room selection"
+    assert mode.attributes["code"] == "ROOM_SELECTION"
+    # The captured job: the log's own counters and battery readings.
+    assert mode.attributes["battery_start"] >= mode.attributes["battery_end"]
+    assert mode.attributes["bumper_hits"] >= 0
+    assert set(mode.attributes) >= {"cliff_events", "obstacles_avoided", "docking_time"}
+
+    device = dr.async_get(hass).async_get_device_by_identifier((DOMAIN, "192.0.2.10"), entry.entry_id)
+    assert device.sw_version == "V6.6.10-P7.N3308.17.0-Sep 21 2023"
+    assert device.hw_version == "Lidar2_0M1.0.91"
+
+
+async def test_firmware_is_known_after_a_restart(hass, entry, robot):
+    from homeassistant.helpers import device_registry as dr
+
+    await setup(hass, entry)
+    await push_persisted_map(hass, entry)
+    await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    dr.async_get(hass).async_clear_config_entry(entry.entry_id)
+
+    await setup(hass, entry)
+
+    device = dr.async_get(hass).async_get_device_by_identifier((DOMAIN, "192.0.2.10"), entry.entry_id)
+    assert device.sw_version == "V6.6.10-P7.N3308.17.0-Sep 21 2023"
+
+
+async def test_a_log_without_versions_or_mode(hass, entry, robot):
+    from homeassistant.helpers import device_registry as dr
+
+    await setup(hass, entry)
+    vacuum_map = decode_frame("sharkiq_persisted_map_frame.b64")
+    vacuum_map.log = [e for e in vacuum_map.log if not e.key.startswith(("DT_VERSION", "DT_CLEANING_MODE"))]
+    await push(hass, entry, docked_status(map=vacuum_map))
+
+    assert hass.states.get("sensor.basement_shark_last_clean_mode").state == "None"
+    device = dr.async_get(hass).async_get_device_by_identifier((DOMAIN, "192.0.2.10"), entry.entry_id)
+    assert device.sw_version is None
+
+    # A device removed from the registry is not recreated by a firmware update.
+    dr.async_get(hass).async_remove_device(device.id)
+    await push_persisted_map(hass, entry)
+    assert dr.async_get(hass).async_get_device_by_identifier((DOMAIN, "192.0.2.10"), entry.entry_id) is None

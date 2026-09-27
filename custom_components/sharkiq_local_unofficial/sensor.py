@@ -75,6 +75,37 @@ def _last_code(data: SharkData, key: str) -> str | None:
     return end_reason(codes[-1]) if key == "DT_WFF_TERM_CODE" else codes[-1]
 
 
+def _clean_mode(data: SharkData) -> str | None:
+    """The last job's cleaning mode code: "Cleaning mode: ROOM_SELECTION" -> ROOM_SELECTION."""
+    codes = _log_codes(data, "DT_CLEANING_MODE")
+    if codes is None:
+        return None
+    if not codes:
+        return "none"
+    return codes[-1].split(":", 1)[-1].strip()
+
+
+def _log_numbers(job: VacuumMap, predicate: Callable[[str], bool]) -> list[int]:
+    return [int(e.code) for e in job.log if predicate(e.key) and e.code.lstrip("-").isdigit()]
+
+
+def _job_details(data: SharkData) -> dict[str, Any] | None:
+    """What the robot's log says about the last job, beyond area and time."""
+    if (job := _last_job(data)) is None:
+        return None
+    battery = _log_numbers(job, lambda key: key == "DT_BATTERY_VALUE_AT_STATE_TRANS")
+    return {
+        "code": _clean_mode(data),
+        "battery_start": battery[0] if battery else None,
+        "battery_end": battery[-1] if battery else None,
+        "bumper_hits": sum(_log_numbers(job, lambda k: k.startswith("DT_BUMPER_") and k.endswith("_COUNTER"))),
+        "cliff_events": sum(_log_numbers(job, lambda k: k.startswith("DT_CLIFF_") and k.endswith("_COUNTER"))),
+        "obstacles_avoided": sum(_log_numbers(job, lambda k: k.startswith("DT_IR_AVOID_") and k.endswith("_COUNTER"))),
+        "docking_time": sum(_log_numbers(job, lambda k: k.endswith("_DOCK_TIME") and k.startswith("DT_")
+                                         and k not in ("DT_TIME_BASE_DOCK", "DT_TIME_PP_DOCK"))),
+    }
+
+
 def _code_attrs(data: SharkData, key: str) -> dict[str, Any]:
     # The raw code is the stable thing for automations to match on.
     return {"code": _last_code(data, key)}
@@ -168,6 +199,13 @@ SENSORS: tuple[SharkSensorDescription, ...] = (
         device_class=SensorDeviceClass.TIMESTAMP,
         mqtt_only=True,
         value_fn=_job_started,
+    ),
+    SharkSensorDescription(
+        key="last_clean_mode",
+        translation_key="last_clean_mode",
+        mqtt_only=True,
+        value_fn=lambda data: describe(_clean_mode(data)),
+        attrs_fn=_job_details,
     ),
     # The robot's own event log arrives with the persisted map at the end of
     # every job; these are its fault and job-outcome codes.

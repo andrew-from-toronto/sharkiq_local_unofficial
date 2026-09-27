@@ -7,6 +7,7 @@ from datetime import timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -173,6 +174,7 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
                     self._map_store.async_save(status.map.to_dict()),
                     f"{DOMAIN} save map",
                 )
+                self._update_firmware(status.map)
             else:
                 self._live_map = status.map
         self.async_set_updated_data(self._snapshot(status))
@@ -228,10 +230,44 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
     def get_device_metadata(self) -> dict[str, Any]:
         """Return metadata for HA device registry."""
         firmware = None
+        hardware = None
         mac = None
         if self._device_info:
             firmware = self._device_info.firmware
             mac = self._device_info.mac_address
         if self._wifi and not mac:
             mac = self._wifi.mac_address
-        return {"firmware": firmware, "mac": mac}
+        # REST is dead on some firmware; the event log names the versions too.
+        logged = firmware_from_log(self.client.last_map)
+        return {
+            "firmware": firmware or logged.get("DT_VERSION_L01"),
+            "hardware": logged.get("DT_VERSION_MCU"),
+            "mac": mac,
+        }
+
+    @callback
+    def _update_firmware(self, vacuum_map: VacuumMap) -> None:
+        """Keep the device's versions in step with what the robot last logged."""
+        logged = firmware_from_log(vacuum_map)
+        if not logged:
+            return
+        registry = dr.async_get(self.hass)
+        device = registry.async_get_device_by_identifier((DOMAIN, self.unique_id), self.entry_id)
+        if device is None:
+            return
+        registry.async_update_device(
+            device.id,
+            sw_version=logged.get("DT_VERSION_L01", device.sw_version),
+            hw_version=logged.get("DT_VERSION_MCU", device.hw_version),
+        )
+
+
+def firmware_from_log(vacuum_map: VacuumMap | None) -> dict[str, str]:
+    """The firmware versions a persisted map's event log carries."""
+    if vacuum_map is None:
+        return {}
+    return {
+        entry.key: entry.code
+        for entry in vacuum_map.log
+        if entry.key in ("DT_VERSION_L01", "DT_VERSION_MCU") and entry.code
+    }
