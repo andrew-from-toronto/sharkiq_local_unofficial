@@ -234,3 +234,50 @@ async def test_without_mqtt_only_the_rest_entities_exist(hass, robot):
     assert hass.states.get("switch.basement_shark_recharge_resume") is None
     assert hass.states.get("image.basement_shark_map") is None
     assert hass.states.get("sensor.basement_shark_last_clean_area") is None
+
+
+async def test_spot_clean_draws_its_zone_until_the_job_ends(hass, entry, robot):
+    import dataclasses
+
+    from sharklocal.models import MapRoom
+    from sharklocal.vacuum_map import SPOT_ROOM_NAME, spot_polygon
+
+    await setup(hass, entry)
+    await push_persisted_map(hass, entry)
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    before = hass.states.get("image.basement_shark_map").state
+
+    await hass.services.async_call(
+        DOMAIN, "clean_spot", {"entity_id": VACUUM, "x": 2.74, "y": 0.02}, blocking=True
+    )
+
+    assert coordinator.job_target.zone == tuple(spot_polygon(2.74, 0.02))
+    assert hass.states.get("image.basement_shark_map").state != before
+
+    # The robot's end-of-job map records the zone as a room named PinDrop.
+    saved = decode_frame("sharkiq_persisted_map_frame.b64")
+    spot = MapRoom(SPOT_ROOM_NAME, spot_polygon(2.74, 0.02), selected=True, coverage=1.0)
+    saved = dataclasses.replace(saved, rooms=[*saved.rooms, spot])
+    await push(hass, entry, docked_status(map=saved))
+
+    assert coordinator.job_target is None
+    # A zone is not a room: not listed, not a segment, not cleanable by name.
+    assert hass.states.get(VACUUM).attributes["rooms"] == ["Bathroom.", "Room", "Laundry Room", "Hallway"]
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "clean_rooms", {"entity_id": VACUUM, "rooms": ["PinDrop"]}, blocking=True
+        )
+
+
+async def test_room_clean_records_its_rooms_and_a_full_clean_clears_them(hass, entry, robot):
+    await setup(hass, entry)
+    await push_persisted_map(hass, entry)
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+
+    await hass.services.async_call(
+        DOMAIN, "clean_rooms", {"entity_id": VACUUM, "rooms": ["hallway"]}, blocking=True
+    )
+    assert coordinator.job_target.rooms == ("Hallway",)
+
+    await hass.services.async_call(VACUUM_DOMAIN, "start", {"entity_id": VACUUM}, blocking=True)
+    assert coordinator.job_target is None

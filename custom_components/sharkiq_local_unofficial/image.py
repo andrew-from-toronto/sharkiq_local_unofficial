@@ -10,7 +10,7 @@ from homeassistant.util import dt as dt_util
 from sharklocal.models import VacuumMap
 
 from .const import CONF_NAME, DOMAIN
-from .coordinator import SharkCoordinator
+from .coordinator import JobTarget, SharkCoordinator
 from .entity import SharkBaseEntity
 from .map_render import render_map
 
@@ -41,25 +41,27 @@ class SharkMapImage(SharkBaseEntity, ImageEntity):
         SharkBaseEntity.__init__(self, coordinator, entry_title)
         ImageEntity.__init__(self, coordinator.hass)
         self._attr_unique_id = f"{coordinator.unique_id}_map"
-        self._drawn: tuple[VacuumMap, VacuumMap | None] | None = None
+        self._drawn: tuple[VacuumMap, VacuumMap | None, JobTarget | None] | None = None
         self._png: bytes | None = None
         self._track_map()
 
-    def _current(self) -> tuple[VacuumMap, VacuumMap | None] | None:
+    def _current(self) -> tuple[VacuumMap, VacuumMap | None, JobTarget | None] | None:
         data = self.coordinator.data
         if data is None or data.map is None:
             return None
-        return (data.map, data.persisted_map)
+        return (data.map, data.persisted_map, self.coordinator.job_target)
 
     @callback
     def _track_map(self) -> None:
-        # Status frames arrive every few seconds; only a new map object is a
-        # new picture, and rendering waits until something asks for it.
+        # Status frames arrive every few seconds; only a new map object (or a
+        # new job target) is a new picture, and rendering waits until something
+        # asks for it.
         current = self._current()
         if current is not None and (
             self._drawn is None
             or current[0] is not self._drawn[0]
             or current[1] is not self._drawn[1]
+            or current[2] != self._drawn[2]
         ):
             self._drawn = current
             self._png = None

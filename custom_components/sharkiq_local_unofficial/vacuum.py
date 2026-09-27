@@ -18,9 +18,10 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from sharklocal import SharklocalError
 from sharklocal.models import SuctionLevel, VacuumMode
+from sharklocal.vacuum_map import spot_polygon
 
 from .const import CONF_NAME, DOMAIN
-from .coordinator import SharkCoordinator
+from .coordinator import JobTarget, SharkCoordinator
 from .entity import SharkBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,13 +88,14 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Restore the last suction level set."""
         await super().async_added_to_hass()
-        # The robot never reports its suction level — it only echoes a change
-        # once — so the last level written here is the best available answer.
         if (last := await self.async_get_last_state()) is not None:
-            speed = last.attributes.get("fan_speed")
-            if speed in FAN_SPEEDS:
-                self._attr_fan_speed = speed
+            self.coordinator.restore_suction(last.attributes.get("fan_speed"))
         self._check_segments()
+
+    @property
+    def fan_speed(self) -> str | None:
+        """The last suction level set (the robot never reports it)."""
+        return self.coordinator.suction.value if self.coordinator.suction else None
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -144,6 +146,7 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
     async def async_start(self) -> None:
         """Start cleaning."""
         await self._command("start_cleaning", self.coordinator.client.start_cleaning())
+        self.coordinator.set_job_target(None)
 
     async def async_stop(self, **kwargs: Any) -> None:
         """Stop cleaning (the robot returns to its dock)."""
@@ -164,10 +167,8 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
                 f"Unknown fan speed {fan_speed!r}; choose from {FAN_SPEEDS}"
             )
         await self._command(
-            "set_suction", self.coordinator.client.set_suction(SuctionLevel(fan_speed))
+            "set_suction", self.coordinator.async_set_suction(SuctionLevel(fan_speed))
         )
-        self._attr_fan_speed = fan_speed
-        self.async_write_ha_state()
 
     # ------------------------------------------------------------------
     # Rooms
@@ -177,7 +178,7 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
         data = self.coordinator.data
         if data is None or data.persisted_map is None:
             return []
-        return [room.name for room in data.persisted_map.rooms]
+        return [room.name for room in data.persisted_map.named_rooms]
 
     def resolve_rooms(self, requested: list[str]) -> list[str]:
         """Map requested names to the map's exact room names.
@@ -213,10 +214,12 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
         await self._command(
             "clean_rooms", self.coordinator.client.clean_rooms(names, deep=matrix)
         )
+        self.coordinator.set_job_target(JobTarget(rooms=tuple(names)))
 
     async def async_clean_spot_at(self, x: float, y: float) -> None:
         """Spot-clean a ~1.5 m square around a point on the map, in metres."""
         await self._command("clean_spot", self.coordinator.client.clean_spot(x, y))
+        self.coordinator.set_job_target(JobTarget(zone=tuple(spot_polygon(x, y))))
 
     async def async_get_segments(self) -> list[Segment]:
         """Return the rooms on the latest map, for HA's area mapping."""

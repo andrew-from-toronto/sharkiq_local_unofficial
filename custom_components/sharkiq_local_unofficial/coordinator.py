@@ -15,7 +15,13 @@ from sharklocal import (
     SharklocalError,
     VacuumClient,
 )
-from sharklocal.models import DeviceInfo, VacuumMap, VacuumStatus
+from sharklocal.models import (
+    DeviceInfo,
+    MapPoint,
+    SuctionLevel,
+    VacuumMap,
+    VacuumStatus,
+)
 
 from .const import DOMAIN
 
@@ -36,6 +42,14 @@ class SharkData:
     map: VacuumMap | None = None
     # The latest persisted (end-of-job) map: rooms, dock, job summary, log.
     persisted_map: VacuumMap | None = None
+
+
+@dataclass(frozen=True)
+class JobTarget:
+    """What the current job was sent to clean: chosen rooms, or a spot zone."""
+
+    rooms: tuple[str, ...] = ()
+    zone: tuple[MapPoint, ...] = ()
 
 
 class SharkCoordinator(DataUpdateCoordinator[SharkData]):
@@ -84,6 +98,14 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.map"
         )
         self._live_map: VacuumMap | None = None
+        # The robot never reports its suction level — it only echoes a change
+        # once — so the last level set is held here, shared by the vacuum's fan
+        # speed and the suction select, and restored by them after a restart.
+        self.suction: SuctionLevel | None = None
+        # Live frames do not say what a job was sent to clean, so the target of
+        # a job started here is held until the end-of-job map (which records
+        # it) arrives. Not durable: a restart mid-job just stops drawing it.
+        self.job_target: JobTarget | None = None
 
     async def async_setup(self) -> None:
         """Initial setup: fetch device info and restore the stored map."""
@@ -115,13 +137,36 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
         except SharklocalError as err:
             _LOGGER.debug("Could not start MQTT monitoring for %s: %s", self.host, err)
 
+    async def async_set_suction(self, level: SuctionLevel) -> None:
+        """Set the suction level and remember it."""
+        await self.client.set_suction(level)
+        self.suction = level
+        self.async_update_listeners()
+
+    @callback
+    def set_job_target(self, target: JobTarget | None) -> None:
+        """Record what a job started from here was sent to clean."""
+        self.job_target = target
+        self.async_update_listeners()
+
+    @callback
+    def restore_suction(self, value: Any) -> None:
+        """Adopt a restored suction level, unless one is already known."""
+        if self.suction is None and value in {level.value for level in SuctionLevel}:
+            self.suction = SuctionLevel(value)
+            # Whichever entity restores first, the other may already be showing
+            # "unknown".
+            self.async_update_listeners()
+
     @callback
     def _on_status(self, status: VacuumStatus) -> None:
         """Handle a status frame pushed by the robot."""
         if status.map is not None:
             if status.map.persisted:
-                # The job is over; the persisted frame supersedes the live one.
+                # The job is over; the persisted frame supersedes the live one
+                # and records what the job cleaned.
                 self._live_map = None
+                self.job_target = None
                 # Once per job, so save now: a delayed save is only flushed at
                 # shutdown and an entry reload in between would lose it.
                 self.hass.async_create_task(

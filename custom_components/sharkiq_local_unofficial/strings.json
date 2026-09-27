@@ -37,6 +37,16 @@
         "name": "Map"
       }
     },
+    "select": {
+      "suction": {
+        "name": "Suction",
+        "state": {
+          "eco": "Eco",
+          "normal": "Normal",
+          "max": "Max"
+        }
+      }
+    },
     "sensor": {
       "battery": {
         "name": "Battery"
