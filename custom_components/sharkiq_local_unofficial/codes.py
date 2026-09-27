@@ -97,7 +97,7 @@ WARNINGS: dict[str, str] = {
     "WARN_LIDAR_BROKEN": "Lidar sensor problem",
     "WARN_LOW_LIGHT": "Low light",
     "WARN_MAP_SYNC_FAILED": "Map sync failed",
-    "WARN_MM_LOWLIGHT": "Low light for the camera",
+    "WARN_MM_LOWLIGHT": "Low light (mapping)",  # MM = map manager, as its neighbours show; not a camera
     "WARN_MM_NOTFINISH": "Map not finished",
     "WARN_NO_LIGHT": "Too dark",
     "WARN_OVER_CURRENT": "Motor overloaded",

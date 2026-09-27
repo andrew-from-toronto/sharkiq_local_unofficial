@@ -57,9 +57,9 @@ async def test_persisted_map_fills_in_the_last_job(hass, entry, robot):
     minutes = float(hass.states.get("sensor.basement_shark_last_clean_duration").state)
     assert minutes == pytest.approx(1.68, abs=0.01)
     warning = hass.states.get("sensor.basement_shark_last_warning")
-    assert warning.state == "Low light for the camera"
+    assert warning.state == "Low light (mapping)"
     assert warning.attributes["code"] == "WARN_MM_LOWLIGHT"
-    assert warning.attributes["warnings"] == ["Low light for the camera"]
+    assert warning.attributes["warnings"] == ["Low light (mapping)"]
     assert warning.attributes["warning_codes"] == ["WARN_MM_LOWLIGHT"]
     dock = hass.states.get("sensor.basement_shark_last_dock_reason")
     assert dock.state == "Sent to dock by user"
@@ -436,6 +436,6 @@ async def test_mid_job_log_entries_become_events(hass, entry, robot):
         "host": "192.0.2.10",
         "key": "DT_WARNING_CODE",
         "code": "WARN_MM_LOWLIGHT",
-        "description": "Low light for the camera",
+        "description": "Low light (mapping)",
         "time": 1790473219,
     }]

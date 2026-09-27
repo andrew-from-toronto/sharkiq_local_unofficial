@@ -280,6 +280,11 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
             _LOGGER.debug("Could not request the saved map from %s: %s", self.host, err)
 
     @property
+    def has_wifi_status(self) -> bool:
+        """Whether the robot answered the REST wifi_status call at setup."""
+        return self._wifi is not None
+
+    @property
     def unique_id(self) -> str:
         """Stable unique ID for this vacuum.
 

@@ -40,6 +40,10 @@ class SharkSensorDescription(SensorEntityDescription):
     value_fn: Callable[[SharkData], Any]
     attrs_fn: Callable[[SharkData], dict[str, Any] | None] | None = None
     mqtt_only: bool = False
+    # From the REST wifi_status endpoint alone: MQTT status frames carry no
+    # signal level, SSID or address (PbDeviceInfo has fields for the signal,
+    # but the robot has not been seen to send them).
+    rest_only: bool = False
 
 
 def _last_job(data: SharkData) -> VacuumMap | None:
@@ -297,6 +301,7 @@ SENSORS: tuple[SharkSensorDescription, ...] = (
     SharkSensorDescription(
         key="rssi",
         translation_key="rssi",
+        rest_only=True,
         device_class=SensorDeviceClass.SIGNAL_STRENGTH,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
@@ -307,6 +312,7 @@ SENSORS: tuple[SharkSensorDescription, ...] = (
     SharkSensorDescription(
         key="ssid",
         translation_key="ssid",
+        rest_only=True,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         value_fn=lambda data: data.wifi.ssid if data.wifi else None,
@@ -314,6 +320,7 @@ SENSORS: tuple[SharkSensorDescription, ...] = (
     SharkSensorDescription(
         key="ip_address",
         translation_key="ip_address",
+        rest_only=True,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         value_fn=lambda data: data.wifi.ip_address if data.wifi else None,
@@ -332,7 +339,10 @@ async def async_setup_entry(
     async_add_entities(
         SharkSensor(coordinator, name, desc)
         for desc in SENSORS
-        if coordinator.use_mqtt or not desc.mqtt_only
+        if (coordinator.use_mqtt or not desc.mqtt_only)
+        # Firmware whose REST endpoints are dead would leave these unknown
+        # for good.
+        and (coordinator.has_wifi_status or not desc.rest_only)
     )
 
 

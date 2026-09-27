@@ -164,6 +164,26 @@ async def test_wifi_is_refreshed_on_its_own_cadence(hass, robot):
     assert coordinator(hass, entry).data.wifi.rssi == -61
 
 
+WIFI_SENSORS = ("signal_strength", "wi_fi_ssid", "ip_address")
+
+
+async def test_no_wifi_sensors_when_rest_is_dead(hass, entry, robot):
+    # This firmware's REST endpoints never answer and MQTT carries no signal
+    # level, SSID or address, so the sensors would be unknown for good.
+    await setup(hass, entry)
+    registry = er.async_get(hass)
+    for key in WIFI_SENSORS:
+        assert registry.async_get(f"sensor.basement_shark_{key}") is None, key
+
+
+async def test_wifi_sensors_when_rest_answers(hass, entry, robot):
+    robot.answers["get_wifi_status"] = DeviceInfo(rssi=-61, ssid="home", ip_address="192.0.2.10")
+    await setup(hass, entry)
+    registry = er.async_get(hass)
+    for key in WIFI_SENSORS:
+        assert registry.async_get(f"sensor.basement_shark_{key}") is not None, key
+
+
 # ---------------------------------------------------------------------------
 # Vacuum commands
 # ---------------------------------------------------------------------------
