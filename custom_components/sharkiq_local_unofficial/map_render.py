@@ -33,12 +33,12 @@ SCALE = 6  # pixels per grid cell (the basement grid is ~191 x 105 cells)
 SUPERSAMPLE = 2  # draw at this multiple, then downsample: anti-aliased vectors
 MARGIN_CELLS = 8  # room for the floor's halo at the picture's edge
 DP_PER_FLOOR_WIDTH = 1 / 329
-# The app draws its markers at a fixed size because its map is zoomed in; on a
-# whole-floor picture that is ~3.4x life size, so they are drawn at half.
-MARKER_SCALE = 0.5
+# Markers are drawn to the map's own scale, not the app's fixed dp (its map is
+# zoomed in; a whole-floor picture at those sizes is ~3.4x life size).
+ROBOT_METRES = 0.33  # a Shark lidar robot's diameter (typical; not published per model)
+DOCK_METRES = 0.40  # an RV2610 self-empty base: 15.79 in across, per Shark's listing
 ROBOT_DISC_FRACTION = 32.1 / 104  # the robot disc's diameter within its drawable
 DOCK_BODY_FRACTION = 18 / 36  # the base's width within live_cleaning_robot_dock
-DOCK_TO_ROBOT = 1.15  # dock width : robot diameter
 
 ICONS = Path(__file__).parent / "icons"
 FONT = Path(__file__).parent / "fonts" / "Montserrat-Bold.ttf"
@@ -165,14 +165,13 @@ def render_map(
 
     # 9-10. Dock base, then the robot over it. Docked, the robot sits on its
     # dock facing out, as in the app; the dock pose is where it sits then.
-    robot_size = round(104 * dp * MARKER_SCALE)
-    disc_radius = robot_size * ROBOT_DISC_FRACTION / 2
+    px_per_metre = SCALE * ss / grid.resolution
+    robot_size = round(ROBOT_METRES * px_per_metre / ROBOT_DISC_FRACTION)
+    disc_radius = ROBOT_METRES * px_per_metre / 2
     dock = source.dock
     if dock is not None:
-        # Sized from the robot, not the drawable's own dp: the base proper is
-        # only 18 of its 36 units wide, and a real dock is a little wider
-        # than the robot it charges.
-        width = round(DOCK_TO_ROBOT * 2 * disc_radius / DOCK_BODY_FRACTION)
+        # The base proper is only 18 of the drawable's 36 units wide.
+        width = round(DOCK_METRES * px_per_metre / DOCK_BODY_FRACTION)
         base = _icon("dock_base.png").resize((width, round(width * 20 / 36)), Image.Resampling.LANCZOS)
         # The base's front edge faces up in the drawable; turn it to face the
         # way the robot leaves, and set it behind the robot: Shark robots
