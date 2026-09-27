@@ -149,9 +149,14 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
         await self.coordinator.async_request_refresh()
 
     async def async_start(self) -> None:
-        """Start cleaning."""
+        """Start cleaning, or resume a paused job."""
+        data = self.coordinator.data
+        resuming = data is not None and data.status.mode == VacuumMode.PAUSED
         await self._command("start_cleaning", self.coordinator.client.start_cleaning())
-        self.coordinator.set_job_target(None)
+        # Start is USR_CTR_RESUME: a paused room or spot job carries on where
+        # it was (measured 2026-09-27), so only a fresh start is whole-home.
+        if not resuming:
+            self.coordinator.set_job_target(None)
 
     async def async_pause(self) -> None:
         """Pause the job; Start resumes it."""

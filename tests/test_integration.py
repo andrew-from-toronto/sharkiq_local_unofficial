@@ -219,6 +219,37 @@ async def test_pause_and_resume(hass, entry, robot):
     assert robot.actions == ["pause", "start_cleaning"]
 
 
+async def test_resuming_a_spot_clean_keeps_its_zone(hass, entry, robot):
+    await setup(hass, entry)
+    await push_persisted_map(hass, entry)
+    await hass.services.async_call(
+        DOMAIN, "clean_spot", {"entity_id": VACUUM, "x": 1.0, "y": 2.0}, blocking=True
+    )
+    zone = coordinator_of(hass, entry).job_target
+    assert zone is not None
+
+    await push(hass, entry, docked_status(mode=VacuumMode.PAUSED, charging=False))
+    await hass.services.async_call(VACUUM_DOMAIN, "start", {"entity_id": VACUUM}, blocking=True)
+
+    assert coordinator_of(hass, entry).job_target == zone
+
+
+async def test_a_fresh_start_is_whole_home(hass, entry, robot):
+    await setup(hass, entry)
+    await push_persisted_map(hass, entry)
+    await hass.services.async_call(
+        DOMAIN, "clean_spot", {"entity_id": VACUUM, "x": 1.0, "y": 2.0}, blocking=True
+    )
+    await push(hass, entry, docked_status())
+    await hass.services.async_call(VACUUM_DOMAIN, "start", {"entity_id": VACUUM}, blocking=True)
+
+    assert coordinator_of(hass, entry).job_target is None
+
+
+def coordinator_of(hass, entry):
+    return hass.data[DOMAIN][entry.entry_id]
+
+
 async def test_a_live_fault_is_an_error_with_the_apps_words(hass, entry, robot):
     await setup(hass, entry)
     # ERROR_WHEEL_STUCK_L while cleaning, with the low-light warning twice.
