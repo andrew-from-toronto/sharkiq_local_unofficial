@@ -25,7 +25,7 @@ from .const import (
     DOMAIN,
     PLATFORMS,
 )
-from .coordinator import STORAGE_VERSION, SharkCoordinator
+from .coordinator import STORAGE_VERSION, SharkCoordinator, capabilities_from_options
 from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,6 +68,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = SharkCoordinator(
         hass, client, entry.entry_id, host, scan_interval, use_mqtt
     )
+    coordinator.capabilities = capabilities_from_options(entry.options)
 
     try:
         await coordinator.async_setup()
@@ -89,8 +90,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options updates by applying the new scan interval in place."""
+    """Apply options: a new scan interval in place, new capabilities by reloading."""
     coordinator: SharkCoordinator = hass.data[DOMAIN][entry.entry_id]
+    if coordinator.capabilities != capabilities_from_options(entry.options):
+        # Which entities exist depends on what the robot has.
+        hass.config_entries.async_schedule_reload(entry.entry_id)
+        return
     new_interval: int = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     coordinator.update_interval = timedelta(seconds=new_interval)
     _LOGGER.debug(

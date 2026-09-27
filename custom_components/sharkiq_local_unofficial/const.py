@@ -11,6 +11,14 @@ CONF_USE_MQTT = "use_mqtt"
 
 # Options keys (editable after setup via "Configure")
 CONF_SCAN_INTERVAL = "scan_interval"
+# What the robot has (sharklocal.compat): its robot type and two hardware extras.
+CONF_ROBOT_TYPE = "robot_type"
+CONF_SELF_EMPTY_DOCK = "self_empty_dock"
+CONF_CLEAN_EDGE = "clean_edge"
+CAPABILITY_OPTIONS = (CONF_ROBOT_TYPE, CONF_SELF_EMPTY_DOCK, CONF_CLEAN_EDGE)
+DEFAULT_ROBOT_TYPE = "lidar"
+DEFAULT_SELF_EMPTY_DOCK = True
+DEFAULT_CLEAN_EDGE = False
 
 # Defaults
 DEFAULT_MAPPING = "sharkiq_v1"
@@ -24,7 +32,7 @@ MIN_SCAN_INTERVAL = 5
 MAX_SCAN_INTERVAL = 600
 
 # Platforms provided by this integration
-PLATFORMS = ["vacuum", "sensor", "switch", "select", "button", "image"]
+PLATFORMS = ["vacuum", "sensor", "switch", "select", "number", "button", "image"]
 
 # Event names fired on the HA bus
 EVENT_DUSTBIN_REMOVED = f"{DOMAIN}_dustbin_removed"

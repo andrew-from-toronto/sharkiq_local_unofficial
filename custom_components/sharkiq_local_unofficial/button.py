@@ -25,11 +25,6 @@ class SharkButtonDescription(ButtonEntityDescription):
 
 
 BUTTONS: tuple[SharkButtonDescription, ...] = (
-    SharkButtonDescription(
-        key="edge_clean",
-        translation_key="edge_clean",
-        press_fn=lambda client: client.edge_clean(),
-    ),
     # An explore run remaps the floor; disabled so nobody starts one by accident.
     SharkButtonDescription(
         key="explore",
@@ -47,7 +42,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the job buttons (MQTT only)."""
     coordinator: SharkCoordinator = hass.data[DOMAIN][entry.entry_id]
-    if not coordinator.use_mqtt:
+    if not coordinator.use_mqtt or not coordinator.capabilities.has_explore:
         return
     name = entry.data[CONF_NAME]
     async_add_entities(SharkButton(coordinator, name, desc) for desc in BUTTONS)

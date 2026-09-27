@@ -14,6 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from sharklocal import SharklocalError
+from sharklocal.compat import Capabilities
 from sharklocal.models import VacuumStatus
 
 from .const import CONF_NAME, DOMAIN
@@ -30,47 +31,58 @@ class SharkSwitchDescription(SwitchEntityDescription):
     reports it; settings it does not report hold the last value set here.
     """
 
+    supported_fn: Callable[[Capabilities], bool]
     value_fn: Callable[[VacuumStatus], bool | None] | None = None
 
 
+# The settings the SharkClean app offers, each only on robots that have it
+# (sharklocal.compat). The schema has more - child lock, silent mode,
+# continuous crosshatch - that the app offers on no robot, so neither do we.
 SWITCHES: tuple[SharkSwitchDescription, ...] = (
     SharkSwitchDescription(
         key="recharge_resume",
         translation_key="recharge_resume",
         entity_category=EntityCategory.CONFIG,
+        supported_fn=lambda caps: caps.has_recharge_resume,
         value_fn=lambda status: status.recharge_resume,
     ),
     SharkSwitchDescription(
         key="evac_resume",
         translation_key="evac_resume",
         entity_category=EntityCategory.CONFIG,
+        supported_fn=lambda caps: caps.has_auto_empty,
         value_fn=lambda status: status.evac_resume,
     ),
-    # Settings from the app's schema that this model has not been seen to
-    # honour yet: available, but disabled until someone checks one.
     SharkSwitchDescription(
         key="clean_edge",
         translation_key="clean_edge",
         entity_category=EntityCategory.CONFIG,
-        entity_registry_enabled_default=False,
+        supported_fn=lambda caps: caps.has_fan_jet,
         value_fn=lambda status: status.clean_edge,
     ),
-    *(
-        SharkSwitchDescription(
-            key=key,
-            translation_key=key,
-            entity_category=EntityCategory.CONFIG,
-            entity_registry_enabled_default=False,
-        )
-        for key in (
-            "do_not_disturb",
-            "carpet_boost",
-            "child_lock",
-            "silent_mode",
-            "button_sounds",
-            "underglow_lights",
-            "continuous_cross_hatch",
-        )
+    SharkSwitchDescription(
+        key="do_not_disturb",
+        translation_key="do_not_disturb",
+        entity_category=EntityCategory.CONFIG,
+        supported_fn=lambda caps: caps.do_not_disturb,
+    ),
+    SharkSwitchDescription(
+        key="carpet_boost",
+        translation_key="carpet_boost",
+        entity_category=EntityCategory.CONFIG,
+        supported_fn=lambda caps: caps.has_carpet_boost,
+    ),
+    SharkSwitchDescription(
+        key="button_sounds",
+        translation_key="button_sounds",
+        entity_category=EntityCategory.CONFIG,
+        supported_fn=lambda caps: caps.has_button_sounds,
+    ),
+    SharkSwitchDescription(
+        key="underglow_lights",
+        translation_key="underglow_lights",
+        entity_category=EntityCategory.CONFIG,
+        supported_fn=lambda caps: caps.has_underglow_lights,
     ),
 )
 
@@ -85,7 +97,11 @@ async def async_setup_entry(
     if not coordinator.use_mqtt:
         return
     name = entry.data[CONF_NAME]
-    async_add_entities(SharkSwitch(coordinator, name, desc) for desc in SWITCHES)
+    async_add_entities(
+        SharkSwitch(coordinator, name, desc)
+        for desc in SWITCHES
+        if desc.supported_fn(coordinator.capabilities)
+    )
 
 
 class SharkSwitch(SharkBaseEntity, SwitchEntity, RestoreEntity):

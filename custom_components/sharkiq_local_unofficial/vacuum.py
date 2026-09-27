@@ -73,10 +73,7 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
     )
     # Commands that exist only on the MQTT transport.
     _MQTT_FEATURES = (
-        VacuumEntityFeature.PAUSE
-        | VacuumEntityFeature.FAN_SPEED
-        | VacuumEntityFeature.LOCATE
-        | VacuumEntityFeature.CLEAN_AREA
+        VacuumEntityFeature.PAUSE | VacuumEntityFeature.FAN_SPEED | VacuumEntityFeature.LOCATE
     )
 
     def __init__(self, coordinator: SharkCoordinator, entry_title: str) -> None:
@@ -86,6 +83,8 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
         self._attr_supported_features = self._BASE_FEATURES
         if coordinator.use_mqtt:
             self._attr_supported_features |= self._MQTT_FEATURES
+            if coordinator.capabilities.has_rooms:
+                self._attr_supported_features |= VacuumEntityFeature.CLEAN_AREA
         self._segments_checked: list[str] | None = None
 
     async def async_added_to_hass(self) -> None:
@@ -222,6 +221,8 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
 
     async def async_clean_rooms(self, rooms: list[str], matrix: bool = False) -> None:
         """Clean the named rooms, optionally with a Matrix (two-pass) clean."""
+        if matrix and not self.coordinator.capabilities.has_ultra_clean:
+            raise ServiceValidationError("This robot type has no Matrix clean")
         names = self.resolve_rooms(rooms)
         await self._command(
             "clean_rooms", self.coordinator.client.clean_rooms(names, deep=matrix)
@@ -230,6 +231,8 @@ class SharkVacuum(SharkBaseEntity, StateVacuumEntity, RestoreEntity):
 
     async def async_clean_spot_at(self, x: float, y: float) -> None:
         """Spot-clean a ~1.5 m square around a point on the map, in metres."""
+        if not self.coordinator.capabilities.has_pin_drop:
+            raise ServiceValidationError("This robot type has no spot clean")
         await self._command("clean_spot", self.coordinator.client.clean_spot(x, y))
         self.coordinator.set_job_target(JobTarget(zone=tuple(spot_polygon(x, y))))
 

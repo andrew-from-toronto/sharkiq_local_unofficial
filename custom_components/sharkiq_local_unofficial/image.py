@@ -24,7 +24,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the map image (MQTT only: maps are never served over REST)."""
     coordinator: SharkCoordinator = hass.data[DOMAIN][entry.entry_id]
-    if coordinator.use_mqtt:
+    if coordinator.use_mqtt and coordinator.capabilities.has_map:
         async_add_entities([SharkMapImage(coordinator, entry.data[CONF_NAME])])
 
 

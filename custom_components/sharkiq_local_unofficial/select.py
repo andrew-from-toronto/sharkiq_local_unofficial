@@ -26,9 +26,10 @@ async def async_setup_entry(
     coordinator: SharkCoordinator = hass.data[DOMAIN][entry.entry_id]
     if coordinator.use_mqtt:
         name = entry.data[CONF_NAME]
-        async_add_entities(
-            [SharkSuctionSelect(coordinator, name), SharkCarpetDetectSelect(coordinator, name)]
-        )
+        entities: list[SelectEntity] = [SharkSuctionSelect(coordinator, name)]
+        if coordinator.capabilities.has_carpet_detect:
+            entities.append(SharkCarpetDetectSelect(coordinator, name))
+        async_add_entities(entities)
 
 
 class SharkSuctionSelect(SharkBaseEntity, SelectEntity, RestoreEntity):
@@ -71,13 +72,12 @@ CARPET_DETECT = {"auto": 2, "off": 1}
 class SharkCarpetDetectSelect(SharkBaseEntity, SelectEntity, RestoreEntity):
     """Carpet detection: automatic, or off.
 
-    The robot reports this one back (status field 44); until it does, the last
-    value set here is shown. Not yet seen on this model, so disabled by default.
+    Offered on robots with carpet detection. The robot reports it back (status
+    field 44); until it does, the last value set here is shown.
     """
 
     _attr_translation_key = "carpet_detect"
     _attr_entity_category = EntityCategory.CONFIG
-    _attr_entity_registry_enabled_default = False
     _attr_options = list(CARPET_DETECT)
 
     def __init__(self, coordinator: SharkCoordinator, entry_title: str) -> None:

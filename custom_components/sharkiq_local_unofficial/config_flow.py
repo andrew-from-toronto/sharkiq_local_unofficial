@@ -16,6 +16,9 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_HOST, CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
+
+from sharklocal.compat import ROBOT_TYPES
 
 from sharklocal import (
     ConnectError,
@@ -25,7 +28,13 @@ from sharklocal import (
 
 from .const import (
     CONF_MAPPING,
+    CONF_CLEAN_EDGE,
+    CONF_ROBOT_TYPE,
     CONF_SCAN_INTERVAL,
+    CONF_SELF_EMPTY_DOCK,
+    DEFAULT_CLEAN_EDGE,
+    DEFAULT_ROBOT_TYPE,
+    DEFAULT_SELF_EMPTY_DOCK,
     CONF_USE_MQTT,
     DEFAULT_MAPPING,
     DEFAULT_SCAN_INTERVAL,
@@ -154,16 +163,33 @@ class SharkIQLocalOptionsFlow(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        current = self.config_entry.options.get(
-            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-        )
-
+        options = self.config_entry.options
         schema = vol.Schema(
             {
-                vol.Required(CONF_SCAN_INTERVAL, default=current): vol.All(
+                # Which robot this is decides which settings are offered.
+                vol.Required(
+                    CONF_ROBOT_TYPE, default=options.get(CONF_ROBOT_TYPE, DEFAULT_ROBOT_TYPE)
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=list(ROBOT_TYPES),
+                        translation_key=CONF_ROBOT_TYPE,
+                        mode=SelectSelectorMode.LIST,
+                    )
+                ),
+                vol.Required(
+                    CONF_SELF_EMPTY_DOCK,
+                    default=options.get(CONF_SELF_EMPTY_DOCK, DEFAULT_SELF_EMPTY_DOCK),
+                ): bool,
+                vol.Required(
+                    CONF_CLEAN_EDGE, default=options.get(CONF_CLEAN_EDGE, DEFAULT_CLEAN_EDGE)
+                ): bool,
+                vol.Required(
+                    CONF_SCAN_INTERVAL,
+                    default=options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                ): vol.All(
                     cv.positive_int,
                     vol.Range(min=MIN_SCAN_INTERVAL, max=MAX_SCAN_INTERVAL),
-                )
+                ),
             }
         )
 

@@ -24,18 +24,24 @@
     "step": {
       "init": {
         "title": "Shark IQ Vacuum options",
-        "description": "How often to poll the vacuum for status updates. Faster polling means fresher battery level and quicker response in the UI; slower polling means less network traffic. 30s is the recommended default. Range: 5–600 seconds.",
+        "description": "Tell the integration what kind of Shark this is, so it offers only the settings your robot has. Not sure? Laser-navigating robots have a round turret on top; the model number is on the sticker under the robot.",
         "data": {
+          "robot_type": "Robot type",
+          "self_empty_dock": "Has a self-emptying dock",
+          "clean_edge": "Has CleanEdge air jets",
           "scan_interval": "Polling interval (seconds)"
+        },
+        "data_description": {
+          "robot_type": "Decides which settings and cleaning modes are offered.",
+          "self_empty_dock": "Adds Evac & Resume.",
+          "clean_edge": "Adds the CleanEdge switch.",
+          "scan_interval": "Fallback polling; status is pushed live over MQTT. 5–600 seconds."
         }
       }
     }
   },
   "entity": {
     "button": {
-      "edge_clean": {
-        "name": "Edge clean"
-      },
       "explore": {
         "name": "Explore run"
       }
@@ -43,6 +49,11 @@
     "image": {
       "map": {
         "name": "Map"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Volume"
       }
     },
     "select": {
@@ -137,20 +148,11 @@
       "carpet_boost": {
         "name": "Carpet boost"
       },
-      "child_lock": {
-        "name": "Child lock"
-      },
-      "silent_mode": {
-        "name": "Silent mode"
-      },
       "button_sounds": {
         "name": "Button sounds"
       },
       "underglow_lights": {
         "name": "Underglow lights"
-      },
-      "continuous_cross_hatch": {
-        "name": "Continuous crosshatch"
       }
     }
   },
@@ -181,6 +183,19 @@
           "name": "Y",
           "description": "Map y coordinate, in metres."
         }
+      }
+    }
+  },
+  "selector": {
+    "robot_type": {
+      "options": {
+        "lidar": "Laser-navigating robot (e.g. Matrix, AI) — most models",
+        "lidar_carpet": "Laser robot with carpet detection",
+        "rv3000": "RV3000 series (underglow and stain lights)",
+        "spot_lidar": "Compact laser robot without spot cleaning (RV2100)",
+        "map": "Camera-navigating robot with a saved map",
+        "air": "Camera-navigating robot without a saved map",
+        "basic": "Basic robot without a map"
       }
     }
   }

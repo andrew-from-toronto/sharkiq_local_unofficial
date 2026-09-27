@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
@@ -16,6 +17,7 @@ from sharklocal import (
     SharklocalError,
     VacuumClient,
 )
+from sharklocal.compat import Capabilities
 from sharklocal.models import (
     DeviceInfo,
     MapPoint,
@@ -24,7 +26,15 @@ from sharklocal.models import (
     VacuumStatus,
 )
 
-from .const import DOMAIN
+from .const import (
+    CONF_CLEAN_EDGE,
+    CONF_ROBOT_TYPE,
+    CONF_SELF_EMPTY_DOCK,
+    DEFAULT_CLEAN_EDGE,
+    DEFAULT_ROBOT_TYPE,
+    DEFAULT_SELF_EMPTY_DOCK,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,6 +117,7 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
         # a job started here is held until the end-of-job map (which records
         # it) arrives. Not durable: a restart mid-job just stops drawing it.
         self.job_target: JobTarget | None = None
+        self.capabilities: Capabilities = capabilities_from_options({})
 
     async def async_setup(self) -> None:
         """Initial setup: fetch device info and restore the stored map."""
@@ -260,6 +271,15 @@ class SharkCoordinator(DataUpdateCoordinator[SharkData]):
             sw_version=logged.get("DT_VERSION_L01", device.sw_version),
             hw_version=logged.get("DT_VERSION_MCU", device.hw_version),
         )
+
+
+def capabilities_from_options(options: Mapping[str, Any]) -> Capabilities:
+    """What the robot has, as its owner configured it (sharklocal.compat)."""
+    return Capabilities(
+        options.get(CONF_ROBOT_TYPE, DEFAULT_ROBOT_TYPE),
+        options.get(CONF_SELF_EMPTY_DOCK, DEFAULT_SELF_EMPTY_DOCK),
+        options.get(CONF_CLEAN_EDGE, DEFAULT_CLEAN_EDGE),
+    )
 
 
 def firmware_from_log(vacuum_map: VacuumMap | None) -> dict[str, str]:
