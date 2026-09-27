@@ -1,0 +1,202 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ajouter un robot aspirateur Shark IQ",
+        "description": "Ajoutez un robot Shark IQ à la fois. Relancez cet assistant pour en ajouter d’autres. Attribuez d’abord une IP fixe à chaque robot dans votre routeur.",
+        "data": {
+          "host": "Adresse IP",
+          "name": "Nom (p. ex. Shark rez-de-chaussée)",
+          "mapping": "Correspondance (laisser la valeur par défaut en cas de doute)",
+          "use_mqtt": "Activer aussi MQTT (mises à jour en temps réel)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de joindre le robot à cette adresse IP. Vérifiez qu’il est allumé et sur le même réseau.",
+      "unknown": "Erreur inattendue lors de la communication avec le robot. Consultez le journal de Home Assistant."
+    },
+    "abort": {
+      "already_configured": "Ce robot est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options du robot Shark IQ",
+        "description": "Indiquez de quel type de Shark il s’agit, pour ne proposer que les réglages dont votre robot dispose. Pas sûr ? Les robots laser ont une tourelle ronde sur le dessus ; le numéro de modèle figure sur l’étiquette sous le robot.",
+        "data": {
+          "robot_type": "Type de robot",
+          "self_empty_dock": "Possède une base d’autovidage",
+          "clean_edge": "Possède les jets d’air CleanEdge",
+          "scan_interval": "Intervalle d’interrogation (secondes)"
+        },
+        "data_description": {
+          "robot_type": "Détermine les réglages et modes de nettoyage proposés.",
+          "self_empty_dock": "Ajoute Evac & Resume.",
+          "clean_edge": "Ajoute l’interrupteur CleanEdge.",
+          "scan_interval": "Interrogation de secours ; l’état arrive en direct via MQTT. 5 à 600 secondes."
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "explore": {
+        "name": "Parcours d’exploration"
+      }
+    },
+    "image": {
+      "map": {
+        "name": "Carte"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Volume"
+      }
+    },
+    "select": {
+      "suction": {
+        "name": "Aspiration",
+        "state": {
+          "eco": "Eco",
+          "normal": "Normale",
+          "max": "Max"
+        }
+      },
+      "carpet_detect": {
+        "name": "Détection des tapis",
+        "state": {
+          "auto": "Automatique",
+          "off": "Désactivée"
+        }
+      }
+    },
+    "sensor": {
+      "battery": {
+        "name": "Batterie"
+      },
+      "last_clean_area": {
+        "name": "Surface du dernier nettoyage"
+      },
+      "last_clean_duration": {
+        "name": "Durée du dernier nettoyage"
+      },
+      "last_clean_start": {
+        "name": "Début du dernier nettoyage"
+      },
+      "last_warning": {
+        "name": "Dernier avertissement"
+      },
+      "last_end_reason": {
+        "name": "Motif de fin du dernier nettoyage"
+      },
+      "last_dock_reason": {
+        "name": "Motif du dernier retour à la base"
+      },
+      "rssi": {
+        "name": "Force du signal"
+      },
+      "ssid": {
+        "name": "Wi-Fi SSID"
+      },
+      "ip_address": {
+        "name": "Adresse IP"
+      },
+      "error": {
+        "name": "Erreur"
+      },
+      "warning": {
+        "name": "Avertissement"
+      },
+      "robot_state": {
+        "name": "État du robot"
+      },
+      "temperature": {
+        "name": "Température"
+      },
+      "relocation": {
+        "name": "Localisation"
+      },
+      "suction_motor_speed": {
+        "name": "Vitesse du moteur d’aspiration"
+      },
+      "brushroll_speed": {
+        "name": "Vitesse de la brosse principale"
+      },
+      "side_brush_speed": {
+        "name": "Vitesse de la brosse latérale"
+      },
+      "last_clean_mode": {
+        "name": "Dernier mode de nettoyage"
+      }
+    },
+    "switch": {
+      "recharge_resume": {
+        "name": "Recharge & Resume"
+      },
+      "evac_resume": {
+        "name": "Evac & Resume"
+      },
+      "clean_edge": {
+        "name": "CleanEdge"
+      },
+      "do_not_disturb": {
+        "name": "Ne pas déranger"
+      },
+      "carpet_boost": {
+        "name": "Boost tapis"
+      },
+      "button_sounds": {
+        "name": "Sons des boutons"
+      },
+      "underglow_lights": {
+        "name": "Éclairage inférieur"
+      }
+    }
+  },
+  "services": {
+    "clean_rooms": {
+      "name": "Nettoyer des pièces",
+      "description": "Nettoie les pièces nommées de la carte du robot. Contrairement à « Nettoyer une zone », peut demander un Matrix Clean.",
+      "fields": {
+        "rooms": {
+          "name": "Pièces",
+          "description": "Noms des pièces comme dans l’app SharkClean (la casse et la ponctuation sont ignorées). L’attribut « rooms » de l’aspirateur les liste."
+        },
+        "matrix": {
+          "name": "Matrix Clean",
+          "description": "Nettoyer les pièces deux fois, en quadrillage."
+        }
+      }
+    },
+    "clean_spot": {
+      "name": "Nettoyer un point",
+      "description": "Nettoie un carré d’environ 1,5 m autour d’un point de la carte du robot.",
+      "fields": {
+        "x": {
+          "name": "X",
+          "description": "Coordonnée x sur la carte, en mètres."
+        },
+        "y": {
+          "name": "Y",
+          "description": "Coordonnée y sur la carte, en mètres."
+        }
+      }
+    }
+  },
+  "selector": {
+    "robot_type": {
+      "options": {
+        "lidar": "Robot à navigation laser (p. ex. Matrix, AI) – la plupart des modèles",
+        "lidar_carpet": "Robot laser avec détection des tapis",
+        "rv3000": "Série RV3000 (éclairage inférieur et des taches)",
+        "spot_lidar": "Robot laser compact sans nettoyage localisé (RV2100)",
+        "map": "Robot à navigation par caméra avec carte enregistrée",
+        "air": "Robot à navigation par caméra sans carte enregistrée",
+        "basic": "Robot simple sans carte"
+      }
+    }
+  }
+}

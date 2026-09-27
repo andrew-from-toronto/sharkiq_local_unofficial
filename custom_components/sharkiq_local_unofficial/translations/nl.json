@@ -1,0 +1,202 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Shark IQ-robotstofzuiger toevoegen",
+        "description": "Voeg één Shark IQ-robot tegelijk toe. Start deze stap opnieuw om er meer toe te voegen. Geef elke robot eerst een vast IP-adres in je router.",
+        "data": {
+          "host": "IP-adres",
+          "name": "Naam (bijv. Shark beneden)",
+          "mapping": "Koppeling (laat de standaard staan als je het niet zeker weet)",
+          "use_mqtt": "Ook MQTT inschakelen (realtime updates)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "De robot is op dat IP-adres niet bereikbaar. Controleer of hij aan staat en op hetzelfde netwerk zit.",
+      "unknown": "Onverwachte fout bij de communicatie met de robot. Bekijk het Home Assistant-logboek."
+    },
+    "abort": {
+      "already_configured": "Deze robot is al ingesteld."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opties voor de Shark IQ-robot",
+        "description": "Geef aan wat voor Shark dit is, zodat alleen de instellingen worden aangeboden die je robot heeft. Niet zeker? Laserrobots hebben bovenop een ronde toren; het modelnummer staat op de sticker onder de robot.",
+        "data": {
+          "robot_type": "Type robot",
+          "self_empty_dock": "Heeft een zelflegend station",
+          "clean_edge": "Heeft CleanEdge-luchtstralen",
+          "scan_interval": "Pollinginterval (seconden)"
+        },
+        "data_description": {
+          "robot_type": "Bepaalt welke instellingen en schoonmaakmodi worden aangeboden.",
+          "self_empty_dock": "Voegt Evac & Resume toe.",
+          "clean_edge": "Voegt de CleanEdge-schakelaar toe.",
+          "scan_interval": "Reservepolling; de status komt live binnen via MQTT. 5–600 seconden."
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "explore": {
+        "name": "Verkenningsrit"
+      }
+    },
+    "image": {
+      "map": {
+        "name": "Kaart"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Volume"
+      }
+    },
+    "select": {
+      "suction": {
+        "name": "Zuigkracht",
+        "state": {
+          "eco": "Eco",
+          "normal": "Normaal",
+          "max": "Max"
+        }
+      },
+      "carpet_detect": {
+        "name": "Tapijtdetectie",
+        "state": {
+          "auto": "Automatisch",
+          "off": "Uit"
+        }
+      }
+    },
+    "sensor": {
+      "battery": {
+        "name": "Batterij"
+      },
+      "last_clean_area": {
+        "name": "Oppervlak laatste schoonmaak"
+      },
+      "last_clean_duration": {
+        "name": "Duur laatste schoonmaak"
+      },
+      "last_clean_start": {
+        "name": "Start laatste schoonmaak"
+      },
+      "last_warning": {
+        "name": "Laatste waarschuwing"
+      },
+      "last_end_reason": {
+        "name": "Reden einde laatste schoonmaak"
+      },
+      "last_dock_reason": {
+        "name": "Reden laatste terugkeer naar station"
+      },
+      "rssi": {
+        "name": "Signaalsterkte"
+      },
+      "ssid": {
+        "name": "Wi-Fi SSID"
+      },
+      "ip_address": {
+        "name": "IP-adres"
+      },
+      "error": {
+        "name": "Fout"
+      },
+      "warning": {
+        "name": "Waarschuwing"
+      },
+      "robot_state": {
+        "name": "Toestand van de robot"
+      },
+      "temperature": {
+        "name": "Temperatuur"
+      },
+      "relocation": {
+        "name": "Positiebepaling"
+      },
+      "suction_motor_speed": {
+        "name": "Toerental zuigmotor"
+      },
+      "brushroll_speed": {
+        "name": "Toerental borstelrol"
+      },
+      "side_brush_speed": {
+        "name": "Toerental zijborstel"
+      },
+      "last_clean_mode": {
+        "name": "Laatste schoonmaakmodus"
+      }
+    },
+    "switch": {
+      "recharge_resume": {
+        "name": "Recharge & Resume"
+      },
+      "evac_resume": {
+        "name": "Evac & Resume"
+      },
+      "clean_edge": {
+        "name": "CleanEdge"
+      },
+      "do_not_disturb": {
+        "name": "Niet storen"
+      },
+      "carpet_boost": {
+        "name": "Tapijtboost"
+      },
+      "button_sounds": {
+        "name": "Knopgeluiden"
+      },
+      "underglow_lights": {
+        "name": "Onderverlichting"
+      }
+    }
+  },
+  "services": {
+    "clean_rooms": {
+      "name": "Kamers schoonmaken",
+      "description": "Maakt de genoemde kamers van de robotkaart schoon. Anders dan ‘Gebied schoonmaken’ kan dit een Matrix Clean aanvragen.",
+      "fields": {
+        "rooms": {
+          "name": "Kamers",
+          "description": "Kamernamen zoals in de SharkClean-app (hoofdletters en leestekens worden genegeerd). Het attribuut ‘rooms’ van de stofzuiger somt ze op."
+        },
+        "matrix": {
+          "name": "Matrix Clean",
+          "description": "De kamers twee keer schoonmaken, in een kruispatroon."
+        }
+      }
+    },
+    "clean_spot": {
+      "name": "Plek schoonmaken",
+      "description": "Maakt een vierkant van ongeveer 1,5 m rond een punt op de robotkaart schoon.",
+      "fields": {
+        "x": {
+          "name": "X",
+          "description": "X-coördinaat op de kaart, in meters."
+        },
+        "y": {
+          "name": "Y",
+          "description": "Y-coördinaat op de kaart, in meters."
+        }
+      }
+    }
+  },
+  "selector": {
+    "robot_type": {
+      "options": {
+        "lidar": "Robot met lasernavigatie (bijv. Matrix, AI) – de meeste modellen",
+        "lidar_carpet": "Laserrobot met tapijtdetectie",
+        "rv3000": "RV3000-serie (onder- en vlekverlichting)",
+        "spot_lidar": "Compacte laserrobot zonder plekreiniging (RV2100)",
+        "map": "Robot met cameranavigatie en opgeslagen kaart",
+        "air": "Robot met cameranavigatie zonder opgeslagen kaart",
+        "basic": "Eenvoudige robot zonder kaart"
+      }
+    }
+  }
+}

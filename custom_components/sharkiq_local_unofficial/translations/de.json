@@ -1,0 +1,202 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Shark IQ Saugroboter hinzufügen",
+        "description": "Füge jeweils einen Shark IQ Saugroboter hinzu. Starte diesen Ablauf erneut, um weitere hinzuzufügen. Vergib jedem Roboter zuerst eine feste IP-Adresse im Router.",
+        "data": {
+          "host": "IP-Adresse",
+          "name": "Name (z. B. Shark Erdgeschoss)",
+          "mapping": "Zuordnung (Standard beibehalten, wenn unsicher)",
+          "use_mqtt": "Auch MQTT aktivieren (Echtzeit-Updates)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Der Roboter ist unter dieser IP nicht erreichbar. Prüfe, ob er eingeschaltet und im selben Netzwerk ist.",
+      "unknown": "Unerwarteter Fehler bei der Verbindung zum Roboter. Siehe Home-Assistant-Protokoll."
+    },
+    "abort": {
+      "already_configured": "Dieser Roboter ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Optionen für den Shark IQ Saugroboter",
+        "description": "Gib an, welche Art Shark das ist, damit nur die Einstellungen angeboten werden, die dein Roboter hat. Unsicher? Laser-Roboter haben oben einen runden Turm; die Modellnummer steht auf dem Aufkleber unter dem Roboter.",
+        "data": {
+          "robot_type": "Robotertyp",
+          "self_empty_dock": "Hat eine Absaugstation",
+          "clean_edge": "Hat CleanEdge-Luftdüsen",
+          "scan_interval": "Abfrageintervall (Sekunden)"
+        },
+        "data_description": {
+          "robot_type": "Legt fest, welche Einstellungen und Reinigungsarten angeboten werden.",
+          "self_empty_dock": "Fügt Evac & Resume hinzu.",
+          "clean_edge": "Fügt den CleanEdge-Schalter hinzu.",
+          "scan_interval": "Ersatzabfrage; der Status kommt live über MQTT. 5–600 Sekunden."
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "explore": {
+        "name": "Erkundungsfahrt"
+      }
+    },
+    "image": {
+      "map": {
+        "name": "Karte"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Lautstärke"
+      }
+    },
+    "select": {
+      "suction": {
+        "name": "Saugkraft",
+        "state": {
+          "eco": "Eco",
+          "normal": "Normal",
+          "max": "Max"
+        }
+      },
+      "carpet_detect": {
+        "name": "Teppicherkennung",
+        "state": {
+          "auto": "Automatisch",
+          "off": "Aus"
+        }
+      }
+    },
+    "sensor": {
+      "battery": {
+        "name": "Akku"
+      },
+      "last_clean_area": {
+        "name": "Zuletzt gereinigte Fläche"
+      },
+      "last_clean_duration": {
+        "name": "Dauer der letzten Reinigung"
+      },
+      "last_clean_start": {
+        "name": "Beginn der letzten Reinigung"
+      },
+      "last_warning": {
+        "name": "Letzte Warnung"
+      },
+      "last_end_reason": {
+        "name": "Grund für das letzte Reinigungsende"
+      },
+      "last_dock_reason": {
+        "name": "Grund für die letzte Rückkehr"
+      },
+      "rssi": {
+        "name": "Signalstärke"
+      },
+      "ssid": {
+        "name": "Wi-Fi SSID"
+      },
+      "ip_address": {
+        "name": "IP-Adresse"
+      },
+      "error": {
+        "name": "Fehler"
+      },
+      "warning": {
+        "name": "Warnung"
+      },
+      "robot_state": {
+        "name": "Roboterzustand"
+      },
+      "temperature": {
+        "name": "Temperatur"
+      },
+      "relocation": {
+        "name": "Positionsbestimmung"
+      },
+      "suction_motor_speed": {
+        "name": "Drehzahl Saugmotor"
+      },
+      "brushroll_speed": {
+        "name": "Drehzahl Bürstenrolle"
+      },
+      "side_brush_speed": {
+        "name": "Drehzahl Seitenbürste"
+      },
+      "last_clean_mode": {
+        "name": "Letzter Reinigungsmodus"
+      }
+    },
+    "switch": {
+      "recharge_resume": {
+        "name": "Recharge & Resume"
+      },
+      "evac_resume": {
+        "name": "Evac & Resume"
+      },
+      "clean_edge": {
+        "name": "CleanEdge"
+      },
+      "do_not_disturb": {
+        "name": "Nicht stören"
+      },
+      "carpet_boost": {
+        "name": "Teppich-Boost"
+      },
+      "button_sounds": {
+        "name": "Tastentöne"
+      },
+      "underglow_lights": {
+        "name": "Unterbodenbeleuchtung"
+      }
+    }
+  },
+  "services": {
+    "clean_rooms": {
+      "name": "Räume reinigen",
+      "description": "Reinigt die genannten Räume der Roboterkarte. Anders als „Bereich reinigen“ kann dies eine Matrix Clean anfordern.",
+      "fields": {
+        "rooms": {
+          "name": "Räume",
+          "description": "Raumnamen wie in der SharkClean-App (Groß-/Kleinschreibung und Satzzeichen werden ignoriert). Das Attribut „rooms“ des Saugers listet sie auf."
+        },
+        "matrix": {
+          "name": "Matrix Clean",
+          "description": "Die Räume zweimal im Kreuzmuster reinigen."
+        }
+      }
+    },
+    "clean_spot": {
+      "name": "Stelle reinigen",
+      "description": "Reinigt ein Quadrat von etwa 1,5 m um einen Punkt auf der Roboterkarte.",
+      "fields": {
+        "x": {
+          "name": "X",
+          "description": "X-Koordinate auf der Karte, in Metern."
+        },
+        "y": {
+          "name": "Y",
+          "description": "Y-Koordinate auf der Karte, in Metern."
+        }
+      }
+    }
+  },
+  "selector": {
+    "robot_type": {
+      "options": {
+        "lidar": "Laser-Roboter (z. B. Matrix, AI) – die meisten Modelle",
+        "lidar_carpet": "Laser-Roboter mit Teppicherkennung",
+        "rv3000": "RV3000-Serie (Unterboden- und Fleckenbeleuchtung)",
+        "spot_lidar": "Kompakter Laser-Roboter ohne Punktreinigung (RV2100)",
+        "map": "Kamera-Roboter mit gespeicherter Karte",
+        "air": "Kamera-Roboter ohne gespeicherte Karte",
+        "basic": "Einfacher Roboter ohne Karte"
+      }
+    }
+  }
+}

@@ -1,0 +1,202 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Dodaj robota sprzątającego Shark IQ",
+        "description": "Dodawaj po jednym robocie Shark IQ. Uruchom ten kreator ponownie, aby dodać kolejne. Najpierw przypisz każdemu robotowi stały adres IP w routerze.",
+        "data": {
+          "host": "Adres IP",
+          "name": "Nazwa (np. Shark parter)",
+          "mapping": "Mapowanie (zostaw domyślne, jeśli nie masz pewności)",
+          "use_mqtt": "Włącz też MQTT (aktualizacje w czasie rzeczywistym)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nie można połączyć się z robotem pod tym adresem IP. Sprawdź, czy jest włączony i w tej samej sieci.",
+      "unknown": "Nieoczekiwany błąd komunikacji z robotem. Sprawdź dziennik Home Assistant."
+    },
+    "abort": {
+      "already_configured": "Ten robot jest już skonfigurowany."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opcje robota Shark IQ",
+        "description": "Wskaż, jaki to rodzaj robota Shark, aby oferowane były tylko ustawienia, które ma Twój robot. Nie wiesz? Roboty laserowe mają na górze okrągłą wieżyczkę; numer modelu jest na naklejce pod robotem.",
+        "data": {
+          "robot_type": "Typ robota",
+          "self_empty_dock": "Ma stację samoopróżniającą",
+          "clean_edge": "Ma dysze powietrzne CleanEdge",
+          "scan_interval": "Interwał odpytywania (sekundy)"
+        },
+        "data_description": {
+          "robot_type": "Decyduje, jakie ustawienia i tryby sprzątania są dostępne.",
+          "self_empty_dock": "Dodaje Evac & Resume.",
+          "clean_edge": "Dodaje przełącznik CleanEdge.",
+          "scan_interval": "Odpytywanie zapasowe; stan przychodzi na bieżąco przez MQTT. 5–600 sekund."
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "explore": {
+        "name": "Przejazd rozpoznawczy"
+      }
+    },
+    "image": {
+      "map": {
+        "name": "Mapa"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Głośność"
+      }
+    },
+    "select": {
+      "suction": {
+        "name": "Siła ssania",
+        "state": {
+          "eco": "Eco",
+          "normal": "Normalna",
+          "max": "Max"
+        }
+      },
+      "carpet_detect": {
+        "name": "Wykrywanie dywanów",
+        "state": {
+          "auto": "Automatyczne",
+          "off": "Wyłączone"
+        }
+      }
+    },
+    "sensor": {
+      "battery": {
+        "name": "Bateria"
+      },
+      "last_clean_area": {
+        "name": "Powierzchnia ostatniego sprzątania"
+      },
+      "last_clean_duration": {
+        "name": "Czas ostatniego sprzątania"
+      },
+      "last_clean_start": {
+        "name": "Początek ostatniego sprzątania"
+      },
+      "last_warning": {
+        "name": "Ostatnie ostrzeżenie"
+      },
+      "last_end_reason": {
+        "name": "Powód zakończenia ostatniego sprzątania"
+      },
+      "last_dock_reason": {
+        "name": "Powód ostatniego powrotu do stacji"
+      },
+      "rssi": {
+        "name": "Siła sygnału"
+      },
+      "ssid": {
+        "name": "Wi-Fi SSID"
+      },
+      "ip_address": {
+        "name": "Adres IP"
+      },
+      "error": {
+        "name": "Błąd"
+      },
+      "warning": {
+        "name": "Ostrzeżenie"
+      },
+      "robot_state": {
+        "name": "Stan robota"
+      },
+      "temperature": {
+        "name": "Temperatura"
+      },
+      "relocation": {
+        "name": "Ustalanie pozycji"
+      },
+      "suction_motor_speed": {
+        "name": "Prędkość silnika ssącego"
+      },
+      "brushroll_speed": {
+        "name": "Prędkość szczotki głównej"
+      },
+      "side_brush_speed": {
+        "name": "Prędkość szczotki bocznej"
+      },
+      "last_clean_mode": {
+        "name": "Ostatni tryb sprzątania"
+      }
+    },
+    "switch": {
+      "recharge_resume": {
+        "name": "Recharge & Resume"
+      },
+      "evac_resume": {
+        "name": "Evac & Resume"
+      },
+      "clean_edge": {
+        "name": "CleanEdge"
+      },
+      "do_not_disturb": {
+        "name": "Nie przeszkadzać"
+      },
+      "carpet_boost": {
+        "name": "Wzmocnienie na dywanach"
+      },
+      "button_sounds": {
+        "name": "Dźwięki przycisków"
+      },
+      "underglow_lights": {
+        "name": "Podświetlenie dolne"
+      }
+    }
+  },
+  "services": {
+    "clean_rooms": {
+      "name": "Posprzątaj pokoje",
+      "description": "Sprząta wskazane pokoje z mapy robota. W przeciwieństwie do „Posprzątaj obszar” może zlecić Matrix Clean.",
+      "fields": {
+        "rooms": {
+          "name": "Pokoje",
+          "description": "Nazwy pokoi jak w aplikacji SharkClean (wielkość liter i znaki interpunkcyjne są pomijane). Atrybut „rooms” odkurzacza je wymienia."
+        },
+        "matrix": {
+          "name": "Matrix Clean",
+          "description": "Posprzątaj pokoje dwukrotnie, w kratkę."
+        }
+      }
+    },
+    "clean_spot": {
+      "name": "Posprzątaj miejsce",
+      "description": "Sprząta kwadrat o boku ok. 1,5 m wokół punktu na mapie robota.",
+      "fields": {
+        "x": {
+          "name": "X",
+          "description": "Współrzędna x na mapie, w metrach."
+        },
+        "y": {
+          "name": "Y",
+          "description": "Współrzędna y na mapie, w metrach."
+        }
+      }
+    }
+  },
+  "selector": {
+    "robot_type": {
+      "options": {
+        "lidar": "Robot z nawigacją laserową (np. Matrix, AI) – większość modeli",
+        "lidar_carpet": "Robot laserowy z wykrywaniem dywanów",
+        "rv3000": "Seria RV3000 (podświetlenie dolne i plam)",
+        "spot_lidar": "Kompaktowy robot laserowy bez sprzątania miejsca (RV2100)",
+        "map": "Robot z nawigacją kamerową i zapisaną mapą",
+        "air": "Robot z nawigacją kamerową bez zapisanej mapy",
+        "basic": "Prosty robot bez mapy"
+      }
+    }
+  }
+}

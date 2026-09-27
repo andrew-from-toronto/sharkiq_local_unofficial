@@ -1,0 +1,202 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Adicionar robô aspirador Shark IQ",
+        "description": "Adicione um robô Shark IQ por vez. Execute este fluxo de novo para adicionar mais. Antes, atribua a cada robô um IP fixo no roteador.",
+        "data": {
+          "host": "Endereço IP",
+          "name": "Nome (ex.: Shark térreo)",
+          "mapping": "Mapeamento (mantenha o padrão se não tiver certeza)",
+          "use_mqtt": "Ativar também o MQTT (atualizações em tempo real)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Não foi possível alcançar o robô nesse IP. Verifique se ele está ligado e na mesma rede.",
+      "unknown": "Erro inesperado ao se comunicar com o robô. Consulte o log do Home Assistant."
+    },
+    "abort": {
+      "already_configured": "Este robô já está configurado."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opções do robô Shark IQ",
+        "description": "Informe que tipo de Shark é este, para oferecer só as configurações que o seu robô tem. Não sabe? Robôs a laser têm uma torre redonda em cima; o número do modelo está na etiqueta embaixo do robô.",
+        "data": {
+          "robot_type": "Tipo de robô",
+          "self_empty_dock": "Tem base de autoesvaziamento",
+          "clean_edge": "Tem jatos de ar CleanEdge",
+          "scan_interval": "Intervalo de consulta (segundos)"
+        },
+        "data_description": {
+          "robot_type": "Define quais configurações e modos de limpeza são oferecidos.",
+          "self_empty_dock": "Adiciona o Evac & Resume.",
+          "clean_edge": "Adiciona o interruptor CleanEdge.",
+          "scan_interval": "Consulta de reserva; o status chega ao vivo pelo MQTT. 5–600 segundos."
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "explore": {
+        "name": "Percurso de exploração"
+      }
+    },
+    "image": {
+      "map": {
+        "name": "Mapa"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Volume"
+      }
+    },
+    "select": {
+      "suction": {
+        "name": "Sucção",
+        "state": {
+          "eco": "Eco",
+          "normal": "Normal",
+          "max": "Max"
+        }
+      },
+      "carpet_detect": {
+        "name": "Detecção de tapetes",
+        "state": {
+          "auto": "Automática",
+          "off": "Desligada"
+        }
+      }
+    },
+    "sensor": {
+      "battery": {
+        "name": "Bateria"
+      },
+      "last_clean_area": {
+        "name": "Área da última limpeza"
+      },
+      "last_clean_duration": {
+        "name": "Duração da última limpeza"
+      },
+      "last_clean_start": {
+        "name": "Início da última limpeza"
+      },
+      "last_warning": {
+        "name": "Último aviso"
+      },
+      "last_end_reason": {
+        "name": "Motivo do fim da última limpeza"
+      },
+      "last_dock_reason": {
+        "name": "Motivo do último retorno à base"
+      },
+      "rssi": {
+        "name": "Intensidade do sinal"
+      },
+      "ssid": {
+        "name": "Wi-Fi SSID"
+      },
+      "ip_address": {
+        "name": "Endereço IP"
+      },
+      "error": {
+        "name": "Erro"
+      },
+      "warning": {
+        "name": "Aviso"
+      },
+      "robot_state": {
+        "name": "Estado do robô"
+      },
+      "temperature": {
+        "name": "Temperatura"
+      },
+      "relocation": {
+        "name": "Localização"
+      },
+      "suction_motor_speed": {
+        "name": "Velocidade do motor de sucção"
+      },
+      "brushroll_speed": {
+        "name": "Velocidade da escova principal"
+      },
+      "side_brush_speed": {
+        "name": "Velocidade da escova lateral"
+      },
+      "last_clean_mode": {
+        "name": "Último modo de limpeza"
+      }
+    },
+    "switch": {
+      "recharge_resume": {
+        "name": "Recharge & Resume"
+      },
+      "evac_resume": {
+        "name": "Evac & Resume"
+      },
+      "clean_edge": {
+        "name": "CleanEdge"
+      },
+      "do_not_disturb": {
+        "name": "Não perturbe"
+      },
+      "carpet_boost": {
+        "name": "Reforço em tapetes"
+      },
+      "button_sounds": {
+        "name": "Sons dos botões"
+      },
+      "underglow_lights": {
+        "name": "Luzes inferiores"
+      }
+    }
+  },
+  "services": {
+    "clean_rooms": {
+      "name": "Limpar cômodos",
+      "description": "Limpa os cômodos indicados do mapa do robô. Diferente de “Limpar área”, pode pedir uma Matrix Clean.",
+      "fields": {
+        "rooms": {
+          "name": "Cômodos",
+          "description": "Nomes dos cômodos como no app SharkClean (maiúsculas e pontuação são ignoradas). O atributo “rooms” do aspirador os lista."
+        },
+        "matrix": {
+          "name": "Matrix Clean",
+          "description": "Limpar os cômodos duas vezes, em grade."
+        }
+      }
+    },
+    "clean_spot": {
+      "name": "Limpar ponto",
+      "description": "Limpa um quadrado de cerca de 1,5 m em volta de um ponto do mapa do robô.",
+      "fields": {
+        "x": {
+          "name": "X",
+          "description": "Coordenada x no mapa, em metros."
+        },
+        "y": {
+          "name": "Y",
+          "description": "Coordenada y no mapa, em metros."
+        }
+      }
+    }
+  },
+  "selector": {
+    "robot_type": {
+      "options": {
+        "lidar": "Robô com navegação a laser (ex.: Matrix, AI) – a maioria dos modelos",
+        "lidar_carpet": "Robô a laser com detecção de tapetes",
+        "rv3000": "Série RV3000 (luzes inferiores e de manchas)",
+        "spot_lidar": "Robô a laser compacto sem limpeza localizada (RV2100)",
+        "map": "Robô com navegação por câmera e mapa salvo",
+        "air": "Robô com navegação por câmera sem mapa salvo",
+        "basic": "Robô simples sem mapa"
+      }
+    }
+  }
+}

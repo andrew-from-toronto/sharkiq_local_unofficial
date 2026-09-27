@@ -163,7 +163,7 @@
       "fields": {
         "rooms": {
           "name": "Rooms",
-          "description": "Room names as shown in the SharkClean app (case and trailing dots are ignored). The vacuum's rooms attribute lists them."
+          "description": "Room names as shown in the SharkClean app (case and punctuation are ignored). The vacuum's rooms attribute lists them."
         },
         "matrix": {
           "name": "Matrix Clean",

@@ -1,0 +1,202 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Lägg till en Shark IQ-robotdammsugare",
+        "description": "Lägg till en Shark IQ-robot i taget. Kör flödet igen för att lägga till fler. Ge först varje robot en fast IP-adress i routern.",
+        "data": {
+          "host": "IP-adress",
+          "name": "Namn (t.ex. Shark nedervåning)",
+          "mapping": "Mappning (behåll standard om du är osäker)",
+          "use_mqtt": "Aktivera även MQTT (uppdateringar i realtid)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kunde inte nå roboten på den IP-adressen. Kontrollera att den är på och i samma nätverk.",
+      "unknown": "Oväntat fel vid kommunikation med roboten. Se Home Assistants logg."
+    },
+    "abort": {
+      "already_configured": "Den här roboten är redan konfigurerad."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Alternativ för Shark IQ-roboten",
+        "description": "Ange vilken sorts Shark detta är, så erbjuds bara de inställningar din robot har. Osäker? Laserrobotar har ett runt torn upptill; modellnumret står på etiketten under roboten.",
+        "data": {
+          "robot_type": "Robottyp",
+          "self_empty_dock": "Har självtömmande station",
+          "clean_edge": "Har CleanEdge-luftstrålar",
+          "scan_interval": "Avfrågningsintervall (sekunder)"
+        },
+        "data_description": {
+          "robot_type": "Avgör vilka inställningar och städlägen som erbjuds.",
+          "self_empty_dock": "Lägger till Evac & Resume.",
+          "clean_edge": "Lägger till CleanEdge-brytaren.",
+          "scan_interval": "Reservavfrågning; statusen kommer direkt via MQTT. 5–600 sekunder."
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "explore": {
+        "name": "Utforskningskörning"
+      }
+    },
+    "image": {
+      "map": {
+        "name": "Karta"
+      }
+    },
+    "number": {
+      "volume": {
+        "name": "Volym"
+      }
+    },
+    "select": {
+      "suction": {
+        "name": "Sugkraft",
+        "state": {
+          "eco": "Eco",
+          "normal": "Normal",
+          "max": "Max"
+        }
+      },
+      "carpet_detect": {
+        "name": "Mattdetektering",
+        "state": {
+          "auto": "Automatisk",
+          "off": "Av"
+        }
+      }
+    },
+    "sensor": {
+      "battery": {
+        "name": "Batteri"
+      },
+      "last_clean_area": {
+        "name": "Yta vid senaste städning"
+      },
+      "last_clean_duration": {
+        "name": "Längd på senaste städning"
+      },
+      "last_clean_start": {
+        "name": "Start för senaste städning"
+      },
+      "last_warning": {
+        "name": "Senaste varning"
+      },
+      "last_end_reason": {
+        "name": "Orsak till att senaste städning slutade"
+      },
+      "last_dock_reason": {
+        "name": "Orsak till senaste återgång till stationen"
+      },
+      "rssi": {
+        "name": "Signalstyrka"
+      },
+      "ssid": {
+        "name": "Wi-Fi SSID"
+      },
+      "ip_address": {
+        "name": "IP-adress"
+      },
+      "error": {
+        "name": "Fel"
+      },
+      "warning": {
+        "name": "Varning"
+      },
+      "robot_state": {
+        "name": "Robotens tillstånd"
+      },
+      "temperature": {
+        "name": "Temperatur"
+      },
+      "relocation": {
+        "name": "Positionsbestämning"
+      },
+      "suction_motor_speed": {
+        "name": "Sugmotorns varvtal"
+      },
+      "brushroll_speed": {
+        "name": "Borstvalsens varvtal"
+      },
+      "side_brush_speed": {
+        "name": "Sidoborstens varvtal"
+      },
+      "last_clean_mode": {
+        "name": "Senaste städläge"
+      }
+    },
+    "switch": {
+      "recharge_resume": {
+        "name": "Recharge & Resume"
+      },
+      "evac_resume": {
+        "name": "Evac & Resume"
+      },
+      "clean_edge": {
+        "name": "CleanEdge"
+      },
+      "do_not_disturb": {
+        "name": "Stör ej"
+      },
+      "carpet_boost": {
+        "name": "Mattboost"
+      },
+      "button_sounds": {
+        "name": "Knappljud"
+      },
+      "underglow_lights": {
+        "name": "Underbelysning"
+      }
+    }
+  },
+  "services": {
+    "clean_rooms": {
+      "name": "Städa rum",
+      "description": "Städar de namngivna rummen på robotens karta. Till skillnad från ”Städa område” kan detta begära en Matrix Clean.",
+      "fields": {
+        "rooms": {
+          "name": "Rum",
+          "description": "Rumsnamn som i SharkClean-appen (versaler och skiljetecken ignoreras). Dammsugarens attribut ”rooms” listar dem."
+        },
+        "matrix": {
+          "name": "Matrix Clean",
+          "description": "Städa rummen två gånger, i rutmönster."
+        }
+      }
+    },
+    "clean_spot": {
+      "name": "Städa punkt",
+      "description": "Städar en kvadrat på ungefär 1,5 m runt en punkt på robotens karta.",
+      "fields": {
+        "x": {
+          "name": "X",
+          "description": "Kartans x-koordinat, i meter."
+        },
+        "y": {
+          "name": "Y",
+          "description": "Kartans y-koordinat, i meter."
+        }
+      }
+    }
+  },
+  "selector": {
+    "robot_type": {
+      "options": {
+        "lidar": "Robot med lasernavigering (t.ex. Matrix, AI) – de flesta modeller",
+        "lidar_carpet": "Laserrobot med mattdetektering",
+        "rv3000": "RV3000-serien (under- och fläckbelysning)",
+        "spot_lidar": "Kompakt laserrobot utan punktstädning (RV2100)",
+        "map": "Robot med kameranavigering och sparad karta",
+        "air": "Robot med kameranavigering utan sparad karta",
+        "basic": "Enkel robot utan karta"
+      }
+    }
+  }
+}
